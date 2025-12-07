@@ -1,0 +1,13 @@
+{
+    "name": "playbacc-monorepo",
+    "private": true,
+    "workspaces": [
+      "apps/*",
+      "packages/*"
+    ],
+    "scripts": {
+      "dev": "bun --filter '*' run dev",
+      "build": "bun --filter '*' run build",
+      "db:push": "bun --filter api run db:push"
+    }
+  }

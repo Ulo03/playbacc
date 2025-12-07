@@ -1,0 +1,43 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Testing
+coverage
+
+# Production Build Artifacts
+dist
+dist-ssr
+*.local
+
+# Environment Variables (Protect your secrets!)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.cursor/* 
+!.cursorrules
+.idea
+.DS_Store
+*.suo
+*.ntvs
+*.njsproj
+*.sln
+*.sw?
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Bun
+# Note: We DO commit bun.lockb (it's the binary lockfile)
+# But we ignore the cache directory if it exists locally
+.bun/
