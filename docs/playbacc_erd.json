@@ -1,0 +1,1100 @@
+{
+  "id": "0",
+  "name": "playbacc",
+  "createdAt": "2025-12-08T17:52:13.247Z",
+  "updatedAt": "2025-12-08T19:37:42.147Z",
+  "databaseType": "postgresql",
+  "tables": [
+    {
+      "id": "1",
+      "name": "scrobbles",
+      "schema": "public",
+      "order": 8,
+      "fields": [
+        {
+          "id": "2",
+          "name": "id",
+          "type": {
+            "name": "uuid",
+            "id": "uuid",
+            "usageLevel": 2
+          },
+          "nullable": false,
+          "primaryKey": true,
+          "unique": true,
+          "createdAt": 1765220843499
+        },
+        {
+          "id": "3",
+          "name": "user_id",
+          "type": {
+            "name": "uuid",
+            "id": "uuid",
+            "usageLevel": 2
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765220843499
+        },
+        {
+          "id": "4",
+          "name": "track_id",
+          "type": {
+            "name": "uuid",
+            "id": "uuid",
+            "usageLevel": 2
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765220843499
+        },
+        {
+          "id": "5",
+          "name": "album_id",
+          "type": {
+            "name": "uuid",
+            "id": "uuid",
+            "usageLevel": 2
+          },
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765220843499
+        },
+        {
+          "id": "6",
+          "name": "played_at",
+          "type": {
+            "name": "timestamptz",
+            "id": "timestamptz",
+            "usageLevel": 1
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765220843499
+        },
+        {
+          "id": "7",
+          "name": "played_duration_ms",
+          "type": {
+            "name": "integer",
+            "id": "integer",
+            "usageLevel": 1
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765220843499
+        },
+        {
+          "id": "8",
+          "name": "skipped",
+          "type": {
+            "name": "boolean",
+            "id": "boolean",
+            "usageLevel": 1
+          },
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765220843499,
+          "default": "false"
+        }
+      ],
+      "indexes": [
+        {
+          "id": "9",
+          "name": "pk_scrobbles_id",
+          "fieldIds": [
+            "2"
+          ],
+          "unique": true,
+          "isPrimaryKey": true,
+          "createdAt": 1765221763684
+        },
+        {
+          "id": "10",
+          "name": "no_duplicate_scrobbles",
+          "fieldIds": [
+            "3",
+            "4",
+            "6"
+          ],
+          "unique": true,
+          "createdAt": 1765220843499
+        }
+      ],
+      "x": -320,
+      "y": -20,
+      "color": "#ffe374",
+      "isView": false,
+      "createdAt": 1765220843499,
+      "parentAreaId": "ah5ceu8hz7btwq0e7t3ry6l6g",
+      "width": 224,
+      "diagramId": "rg51qhpg8sft"
+    },
+    {
+      "id": "11",
+      "name": "track_albums",
+      "x": -920,
+      "y": 380,
+      "fields": [
+        {
+          "id": "12",
+          "name": "track_id",
+          "type": {
+            "name": "uuid",
+            "id": "uuid",
+            "usageLevel": 2
+          },
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false,
+          "createdAt": 1765220276493
+        },
+        {
+          "id": "13",
+          "name": "album_id",
+          "type": {
+            "name": "uuid",
+            "id": "uuid",
+            "usageLevel": 2
+          },
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false,
+          "createdAt": 1765220375777
+        },
+        {
+          "id": "14",
+          "name": "disc_number",
+          "type": {
+            "name": "integer",
+            "id": "integer",
+            "usageLevel": 1
+          },
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765220394681
+        },
+        {
+          "id": "15",
+          "name": "position",
+          "type": {
+            "name": "integer",
+            "id": "integer",
+            "usageLevel": 1
+          },
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765220404851
+        }
+      ],
+      "indexes": [
+        {
+          "id": "16",
+          "name": "track_albums_pk",
+          "fieldIds": [
+            "12",
+            "13"
+          ],
+          "unique": true,
+          "isPrimaryKey": true,
+          "createdAt": 1765220276493
+        }
+      ],
+      "color": "#42e0c0",
+      "createdAt": 1765220276493,
+      "isView": false,
+      "order": 7,
+      "schema": "public",
+      "parentAreaId": "x4j4cl2rxjcypb7odcuye56ec",
+      "diagramId": "rg51qhpg8sft"
+    },
+    {
+      "id": "17",
+      "name": "track_artists",
+      "x": -1260,
+      "y": 40,
+      "fields": [
+        {
+          "id": "18",
+          "name": "track_id",
+          "type": {
+            "name": "uuid",
+            "id": "uuid",
+            "usageLevel": 2
+          },
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false,
+          "createdAt": 1765219370257
+        },
+        {
+          "id": "19",
+          "name": "artist_id",
+          "type": {
+            "name": "uuid",
+            "id": "uuid",
+            "usageLevel": 2
+          },
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false,
+          "createdAt": 1765219379523
+        },
+        {
+          "id": "20",
+          "name": "is_primary",
+          "type": {
+            "name": "boolean",
+            "id": "boolean",
+            "usageLevel": 1
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765219402135,
+          "default": "true"
+        },
+        {
+          "id": "21",
+          "name": "order",
+          "type": {
+            "name": "integer",
+            "id": "integer",
+            "usageLevel": 1
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765219872275
+        },
+        {
+          "id": "22",
+          "name": "join_phrase",
+          "type": {
+            "name": "text",
+            "id": "text",
+            "usageLevel": 1
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765219857836
+        }
+      ],
+      "indexes": [
+        {
+          "id": "23",
+          "name": "track_artists_pk",
+          "fieldIds": [
+            "18",
+            "19"
+          ],
+          "unique": true,
+          "isPrimaryKey": true,
+          "createdAt": 1765219370257
+        }
+      ],
+      "color": "#42e0c0",
+      "createdAt": 1765219370257,
+      "isView": false,
+      "order": 6,
+      "schema": "public",
+      "parentAreaId": "x4j4cl2rxjcypb7odcuye56ec",
+      "diagramId": "rg51qhpg8sft"
+    },
+    {
+      "id": "24",
+      "name": "artists",
+      "x": -1260,
+      "y": -180,
+      "fields": [
+        {
+          "id": "25",
+          "name": "id",
+          "type": {
+            "name": "uuid",
+            "id": "uuid",
+            "usageLevel": 2
+          },
+          "nullable": false,
+          "primaryKey": true,
+          "unique": true,
+          "createdAt": 1765217240172
+        },
+        {
+          "id": "26",
+          "name": "name",
+          "type": {
+            "name": "text",
+            "id": "text",
+            "usageLevel": 1
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765218444883
+        },
+        {
+          "id": "27",
+          "name": "mbid",
+          "type": {
+            "name": "text",
+            "id": "text",
+            "usageLevel": 1
+          },
+          "nullable": true,
+          "primaryKey": false,
+          "unique": true,
+          "createdAt": 1765218459532
+        },
+        {
+          "id": "28",
+          "name": "image_url",
+          "type": {
+            "name": "text",
+            "id": "text",
+            "usageLevel": 1
+          },
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765218476881
+        }
+      ],
+      "indexes": [
+        {
+          "id": "29",
+          "name": "pk_artists_id",
+          "fieldIds": [
+            "25"
+          ],
+          "unique": true,
+          "isPrimaryKey": true,
+          "createdAt": 1765220843499
+        }
+      ],
+      "color": "#42e0c0",
+      "createdAt": 1765217240172,
+      "isView": false,
+      "order": 2,
+      "schema": "public",
+      "parentAreaId": "x4j4cl2rxjcypb7odcuye56ec",
+      "diagramId": "rg51qhpg8sft"
+    },
+    {
+      "id": "30",
+      "name": "artists_groups",
+      "x": -920,
+      "y": -180,
+      "fields": [
+        {
+          "id": "31",
+          "name": "member_id",
+          "type": {
+            "name": "uuid",
+            "id": "uuid",
+            "usageLevel": 2
+          },
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false,
+          "createdAt": 1765218518364
+        },
+        {
+          "id": "32",
+          "name": "group_id",
+          "type": {
+            "name": "uuid",
+            "id": "uuid",
+            "usageLevel": 2
+          },
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false,
+          "createdAt": 1765218541117
+        }
+      ],
+      "indexes": [
+        {
+          "id": "33",
+          "name": "artists_groups_pk",
+          "fieldIds": [
+            "31",
+            "32"
+          ],
+          "unique": true,
+          "isPrimaryKey": true,
+          "createdAt": 1765218518364
+        }
+      ],
+      "color": "#42e0c0",
+      "createdAt": 1765218518364,
+      "isView": false,
+      "order": 3,
+      "schema": "public",
+      "parentAreaId": "x4j4cl2rxjcypb7odcuye56ec",
+      "diagramId": "rg51qhpg8sft"
+    },
+    {
+      "id": "34",
+      "name": "users",
+      "x": -960,
+      "y": -580,
+      "fields": [
+        {
+          "id": "35",
+          "name": "id",
+          "type": {
+            "name": "uuid",
+            "id": "uuid",
+            "usageLevel": 2
+          },
+          "nullable": false,
+          "primaryKey": true,
+          "unique": true,
+          "createdAt": 1765217424331
+        },
+        {
+          "id": "36",
+          "name": "email",
+          "type": {
+            "name": "text",
+            "id": "text",
+            "usageLevel": 1
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": true,
+          "createdAt": 1765217435500
+        },
+        {
+          "id": "37",
+          "name": "username",
+          "type": {
+            "name": "text",
+            "id": "text",
+            "usageLevel": 1
+          },
+          "nullable": true,
+          "primaryKey": false,
+          "unique": true,
+          "createdAt": 1765217444926
+        },
+        {
+          "id": "38",
+          "name": "image_url",
+          "type": {
+            "name": "text",
+            "id": "text",
+            "usageLevel": 1
+          },
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765217551024
+        },
+        {
+          "id": "39",
+          "name": "role",
+          "type": {
+            "id": "user_role",
+            "name": "user_role"
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765217451535
+        },
+        {
+          "id": "40",
+          "name": "created_at",
+          "type": {
+            "name": "timestamptz",
+            "id": "timestamptz",
+            "usageLevel": 1
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765217561483
+        }
+      ],
+      "indexes": [
+        {
+          "id": "41",
+          "name": "pk_users_id",
+          "fieldIds": [
+            "35"
+          ],
+          "unique": true,
+          "isPrimaryKey": true,
+          "createdAt": 1765220843499
+        }
+      ],
+      "color": "#b067e9",
+      "createdAt": 1765217424331,
+      "isView": false,
+      "order": 0,
+      "schema": "public",
+      "parentAreaId": "f35l6kqzkadr3e3qxve3vq6iu",
+      "diagramId": "rg51qhpg8sft"
+    },
+    {
+      "id": "42",
+      "name": "tracks",
+      "x": -920,
+      "y": 40,
+      "fields": [
+        {
+          "id": "43",
+          "name": "id",
+          "type": {
+            "name": "uuid",
+            "id": "uuid",
+            "usageLevel": 2
+          },
+          "nullable": false,
+          "primaryKey": true,
+          "unique": true,
+          "createdAt": 1765218949937
+        },
+        {
+          "id": "44",
+          "name": "title",
+          "type": {
+            "name": "text",
+            "id": "text",
+            "usageLevel": 1
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765218980186
+        },
+        {
+          "id": "45",
+          "name": "duration_ms",
+          "type": {
+            "name": "integer",
+            "id": "integer",
+            "usageLevel": 1
+          },
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765218988383
+        },
+        {
+          "id": "46",
+          "name": "mbid",
+          "type": {
+            "name": "text",
+            "id": "text",
+            "usageLevel": 1
+          },
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765219631517
+        },
+        {
+          "id": "47",
+          "name": "isrc",
+          "type": {
+            "name": "text",
+            "id": "text",
+            "usageLevel": 1
+          },
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765218997932
+        },
+        {
+          "id": "48",
+          "name": "explicit",
+          "type": {
+            "name": "boolean",
+            "id": "boolean",
+            "usageLevel": 1
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765219065118
+        }
+      ],
+      "indexes": [
+        {
+          "id": "49",
+          "name": "pk_tracks_id",
+          "fieldIds": [
+            "43"
+          ],
+          "unique": true,
+          "isPrimaryKey": true,
+          "createdAt": 1765220843499
+        }
+      ],
+      "color": "#42e0c0",
+      "createdAt": 1765218949937,
+      "isView": false,
+      "order": 5,
+      "schema": "public",
+      "parentAreaId": "x4j4cl2rxjcypb7odcuye56ec",
+      "diagramId": "rg51qhpg8sft"
+    },
+    {
+      "id": "50",
+      "name": "accounts",
+      "x": -1300,
+      "y": -640,
+      "fields": [
+        {
+          "id": "51",
+          "name": "id",
+          "type": {
+            "name": "uuid",
+            "id": "uuid",
+            "usageLevel": 2
+          },
+          "nullable": false,
+          "primaryKey": true,
+          "unique": true,
+          "createdAt": 1765218017298
+        },
+        {
+          "id": "52",
+          "name": "user_id",
+          "type": {
+            "name": "uuid",
+            "id": "uuid",
+            "usageLevel": 2
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765218025541
+        },
+        {
+          "id": "53",
+          "name": "provider",
+          "type": {
+            "id": "account_provider",
+            "name": "account_provider"
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765218081159
+        },
+        {
+          "id": "54",
+          "name": "provider_account_id",
+          "type": {
+            "name": "text",
+            "id": "text",
+            "usageLevel": 1
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765218108984
+        },
+        {
+          "id": "55",
+          "name": "access_token",
+          "type": {
+            "name": "text",
+            "id": "text",
+            "usageLevel": 1
+          },
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765218131699
+        },
+        {
+          "id": "56",
+          "name": "refresh_token",
+          "type": {
+            "name": "text",
+            "id": "text",
+            "usageLevel": 1
+          },
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765218139257
+        },
+        {
+          "id": "57",
+          "name": "expires_at",
+          "type": {
+            "name": "integer",
+            "id": "integer",
+            "usageLevel": 1
+          },
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765218146009
+        },
+        {
+          "id": "58",
+          "name": "scope",
+          "type": {
+            "name": "text",
+            "id": "text",
+            "usageLevel": 1
+          },
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765218159338
+        }
+      ],
+      "indexes": [
+        {
+          "id": "59",
+          "name": "pk_accounts_id",
+          "fieldIds": [
+            "51"
+          ],
+          "unique": true,
+          "isPrimaryKey": true,
+          "createdAt": 1765220843499
+        }
+      ],
+      "color": "#b067e9",
+      "createdAt": 1765218017298,
+      "isView": false,
+      "order": 1,
+      "schema": "public",
+      "parentAreaId": "f35l6kqzkadr3e3qxve3vq6iu",
+      "diagramId": "rg51qhpg8sft"
+    },
+    {
+      "id": "60",
+      "name": "albums",
+      "x": -1260,
+      "y": 300,
+      "fields": [
+        {
+          "id": "61",
+          "name": "id",
+          "type": {
+            "name": "uuid",
+            "id": "uuid",
+            "usageLevel": 2
+          },
+          "nullable": false,
+          "primaryKey": true,
+          "unique": true,
+          "createdAt": 1765218647451
+        },
+        {
+          "id": "62",
+          "name": "artist_id",
+          "type": {
+            "name": "uuid",
+            "id": "uuid",
+            "usageLevel": 2
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765218678982
+        },
+        {
+          "id": "63",
+          "name": "title",
+          "type": {
+            "name": "text",
+            "id": "text",
+            "usageLevel": 1
+          },
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765218826860
+        },
+        {
+          "id": "64",
+          "name": "release_date",
+          "type": {
+            "name": "date",
+            "id": "date",
+            "usageLevel": 1
+          },
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765218831484
+        },
+        {
+          "id": "65",
+          "name": "image_url",
+          "type": {
+            "name": "text",
+            "id": "text",
+            "usageLevel": 1
+          },
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765218844925
+        },
+        {
+          "id": "66",
+          "name": "mbid",
+          "type": {
+            "name": "text",
+            "id": "text",
+            "usageLevel": 1
+          },
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "createdAt": 1765218862098
+        }
+      ],
+      "indexes": [
+        {
+          "id": "67",
+          "name": "pk_albums_id",
+          "fieldIds": [
+            "61"
+          ],
+          "unique": true,
+          "isPrimaryKey": true,
+          "createdAt": 1765220843499
+        }
+      ],
+      "color": "#42e0c0",
+      "createdAt": 1765218647451,
+      "isView": false,
+      "order": 4,
+      "schema": "public",
+      "parentAreaId": "x4j4cl2rxjcypb7odcuye56ec",
+      "diagramId": "rg51qhpg8sft"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "68",
+      "name": "albums_id_fk",
+      "sourceSchema": "public",
+      "sourceTableId": "60",
+      "targetSchema": "public",
+      "targetTableId": "11",
+      "sourceFieldId": "61",
+      "targetFieldId": "13",
+      "sourceCardinality": "one",
+      "targetCardinality": "many",
+      "createdAt": 1765222104049,
+      "diagramId": "rg51qhpg8sft"
+    },
+    {
+      "id": "69",
+      "name": "albums_id_scrobbles_album_id",
+      "sourceTableId": "60",
+      "targetTableId": "1",
+      "sourceFieldId": "61",
+      "targetFieldId": "5",
+      "sourceCardinality": "one",
+      "targetCardinality": "many",
+      "createdAt": 1765220843499,
+      "diagramId": "rg51qhpg8sft"
+    },
+    {
+      "id": "70",
+      "name": "artists_id_fk",
+      "sourceSchema": "public",
+      "sourceTableId": "24",
+      "targetSchema": "public",
+      "targetTableId": "17",
+      "sourceFieldId": "25",
+      "targetFieldId": "19",
+      "sourceCardinality": "one",
+      "targetCardinality": "many",
+      "createdAt": 1765222013656,
+      "diagramId": "rg51qhpg8sft"
+    },
+    {
+      "id": "71",
+      "name": "artists_id_fk",
+      "sourceSchema": "public",
+      "sourceTableId": "24",
+      "targetSchema": "public",
+      "targetTableId": "60",
+      "sourceFieldId": "25",
+      "targetFieldId": "62",
+      "sourceCardinality": "one",
+      "targetCardinality": "many",
+      "createdAt": 1765222001836,
+      "diagramId": "rg51qhpg8sft"
+    },
+    {
+      "id": "72",
+      "name": "artists_id_fk",
+      "sourceSchema": "public",
+      "sourceTableId": "24",
+      "targetSchema": "public",
+      "targetTableId": "30",
+      "sourceFieldId": "25",
+      "targetFieldId": "32",
+      "sourceCardinality": "one",
+      "targetCardinality": "many",
+      "createdAt": 1765222068024,
+      "diagramId": "rg51qhpg8sft"
+    },
+    {
+      "id": "73",
+      "name": "artists_id_fk",
+      "sourceSchema": "public",
+      "sourceTableId": "24",
+      "targetSchema": "public",
+      "targetTableId": "30",
+      "sourceFieldId": "25",
+      "targetFieldId": "31",
+      "sourceCardinality": "one",
+      "targetCardinality": "many",
+      "createdAt": 1765222073610,
+      "diagramId": "rg51qhpg8sft"
+    },
+    {
+      "id": "74",
+      "name": "tracks_id_fk",
+      "sourceSchema": "public",
+      "sourceTableId": "42",
+      "targetSchema": "public",
+      "targetTableId": "17",
+      "sourceFieldId": "43",
+      "targetFieldId": "18",
+      "sourceCardinality": "one",
+      "targetCardinality": "many",
+      "createdAt": 1765222033947,
+      "diagramId": "rg51qhpg8sft"
+    },
+    {
+      "id": "75",
+      "name": "tracks_id_fk",
+      "sourceSchema": "public",
+      "sourceTableId": "42",
+      "targetSchema": "public",
+      "targetTableId": "11",
+      "sourceFieldId": "43",
+      "targetFieldId": "12",
+      "sourceCardinality": "one",
+      "targetCardinality": "many",
+      "createdAt": 1765222110818,
+      "diagramId": "rg51qhpg8sft"
+    },
+    {
+      "id": "76",
+      "name": "tracks_id_scrobbles_track_id",
+      "sourceTableId": "42",
+      "targetTableId": "1",
+      "sourceFieldId": "43",
+      "targetFieldId": "4",
+      "sourceCardinality": "one",
+      "targetCardinality": "many",
+      "createdAt": 1765220843499,
+      "diagramId": "rg51qhpg8sft"
+    },
+    {
+      "id": "77",
+      "name": "users_id_fk",
+      "sourceSchema": "public",
+      "sourceTableId": "34",
+      "targetSchema": "public",
+      "targetTableId": "50",
+      "sourceFieldId": "35",
+      "targetFieldId": "52",
+      "sourceCardinality": "one",
+      "targetCardinality": "many",
+      "createdAt": 1765222269820,
+      "diagramId": "rg51qhpg8sft"
+    },
+    {
+      "id": "78",
+      "name": "users_id_scrobbles_user_id",
+      "sourceTableId": "34",
+      "targetTableId": "1",
+      "sourceFieldId": "35",
+      "targetFieldId": "3",
+      "sourceCardinality": "one",
+      "targetCardinality": "many",
+      "createdAt": 1765220843499,
+      "diagramId": "rg51qhpg8sft"
+    }
+  ],
+  "dependencies": [],
+  "areas": [
+    {
+      "id": "79",
+      "name": "History",
+      "x": -360,
+      "y": -80,
+      "width": 300,
+      "height": 380,
+      "color": "#ffe374",
+      "diagramId": "rg51qhpg8sft"
+    },
+    {
+      "id": "80",
+      "name": "User Management & Auth",
+      "x": -1340,
+      "y": -700,
+      "width": 640,
+      "height": 400,
+      "color": "#b067e9",
+      "diagramId": "rg51qhpg8sft"
+    },
+    {
+      "id": "81",
+      "name": "Music Catalog",
+      "x": -1340,
+      "y": -240,
+      "width": 700,
+      "height": 840,
+      "color": "#42e0c0",
+      "diagramId": "rg51qhpg8sft"
+    }
+  ],
+  "customTypes": [
+    {
+      "id": "82",
+      "schema": "",
+      "name": "account_provider",
+      "kind": "enum",
+      "values": [
+        "spotify"
+      ],
+      "order": 0,
+      "diagramId": "rg51qhpg8sft"
+    },
+    {
+      "id": "83",
+      "schema": "",
+      "name": "user_role",
+      "kind": "enum",
+      "values": [
+        "admin",
+        "user"
+      ],
+      "order": 0,
+      "diagramId": "rg51qhpg8sft"
+    }
+  ],
+  "notes": []
+}
