@@ -5,9 +5,12 @@
   },
   "dependencies": {
     "@playbacc/types": "workspace:*",
-    "hono": "^4.10.7"
+    "drizzle-orm": "^0.45.0",
+    "hono": "^4.10.7",
+    "postgres": "^3.4.7"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "drizzle-kit": "^0.31.8"
   }
 }
