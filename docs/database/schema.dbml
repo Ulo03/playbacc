@@ -1,0 +1,99 @@
+Enum "account_provider" {
+    "spotify"
+}
+
+Enum "user_role" {
+    "admin"
+    "user"
+}
+
+Table "scrobbles" {
+  "id" uuid [pk, not null]
+  "user_id" uuid [not null, ref: < "users"."id"]
+  "track_id" uuid [not null, ref: < "tracks"."id"]
+  "album_id" uuid [ref: < "albums"."id"]
+  "played_at" timestamptz [not null]
+  "played_duration_ms" integer [not null]
+  "skipped" boolean [default: false]
+
+  Indexes {
+    (user_id, track_id, played_at) [unique, name: "no_duplicate_scrobbles"]
+  }
+}
+
+Table "track_albums" {
+  "track_id" uuid [not null]
+  "album_id" uuid [not null]
+  "disc_number" integer
+  "position" integer
+
+  Indexes {
+    (track_id, album_id) [pk, name: "track_albums_pk"]
+  }
+}
+
+Table "track_artists" {
+  "track_id" uuid [not null]
+  "artist_id" uuid [not null]
+  "is_primary" boolean [not null, default: true]
+  "order" integer [not null]
+  "join_phrase" text [not null]
+
+  Indexes {
+    (track_id, artist_id) [pk, name: "track_artists_pk"]
+  }
+}
+
+Table "artists" {
+  "id" uuid [pk, not null, ref: < "track_artists"."artist_id", ref: < "artists_groups"."member_id", ref: < "artists_groups"."group_id"]
+  "name" text [not null]
+  "mbid" text [unique]
+  "image_url" text
+}
+
+Table "artists_groups" {
+  "member_id" uuid [not null]
+  "group_id" uuid [not null]
+
+  Indexes {
+    (member_id, group_id) [pk, name: "artists_groups_pk"]
+  }
+}
+
+Table "users" {
+  "id" uuid [pk, not null]
+  "email" text [unique, not null]
+  "username" text [unique]
+  "image_url" text
+  "role" user_role [not null]
+  "created_at" timestamptz [not null]
+}
+
+Table "tracks" {
+  "id" uuid [pk, not null, ref: < "track_albums"."track_id", ref: < "track_artists"."track_id"]
+  "title" text [not null]
+  "duration_ms" integer
+  "mbid" text
+  "isrc" text
+  "explicit" boolean [not null]
+}
+
+Table "accounts" {
+  "id" uuid [pk, not null]
+  "user_id" uuid [not null, ref: < "users"."id"]
+  "provider" account_provider [not null]
+  "provider_account_id" text [not null]
+  "access_token" text
+  "refresh_token" text
+  "expires_at" integer
+  "scope" text
+}
+
+Table "albums" {
+  "id" uuid [pk, not null, ref: < "track_albums"."album_id"]
+  "artist_id" uuid [not null, ref: < "artists"."id"]
+  "title" text [not null]
+  "release_date" date
+  "image_url" text
+  "mbid" text
+}
