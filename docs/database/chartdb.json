@@ -2,7 +2,7 @@
   "id": "0",
   "name": "playbacc",
   "createdAt": "2025-12-08T17:52:13.247Z",
-  "updatedAt": "2025-12-08T19:37:42.147Z",
+  "updatedAt": "2025-12-10T18:26:26.219Z",
   "databaseType": "postgresql",
   "tables": [
     {
@@ -102,11 +102,36 @@
           "unique": false,
           "createdAt": 1765220843499,
           "default": "false"
+        },
+        {
+          "id": "9",
+          "name": "is_imported",
+          "type": {
+            "id": "boolean",
+            "name": "boolean"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1765391121239,
+          "default": "false"
+        },
+        {
+          "id": "10",
+          "name": "provider",
+          "type": {
+            "id": "account_provider",
+            "name": "account_provider"
+          },
+          "unique": false,
+          "nullable": false,
+          "primaryKey": false,
+          "createdAt": 1765391143933
         }
       ],
       "indexes": [
         {
-          "id": "9",
+          "id": "11",
           "name": "pk_scrobbles_id",
           "fieldIds": [
             "2"
@@ -116,7 +141,7 @@
           "createdAt": 1765221763684
         },
         {
-          "id": "10",
+          "id": "12",
           "name": "no_duplicate_scrobbles",
           "fieldIds": [
             "3",
@@ -137,13 +162,13 @@
       "diagramId": "rg51qhpg8sft"
     },
     {
-      "id": "11",
+      "id": "13",
       "name": "track_albums",
       "x": -920,
       "y": 380,
       "fields": [
         {
-          "id": "12",
+          "id": "14",
           "name": "track_id",
           "type": {
             "name": "uuid",
@@ -156,7 +181,7 @@
           "createdAt": 1765220276493
         },
         {
-          "id": "13",
+          "id": "15",
           "name": "album_id",
           "type": {
             "name": "uuid",
@@ -169,7 +194,7 @@
           "createdAt": 1765220375777
         },
         {
-          "id": "14",
+          "id": "16",
           "name": "disc_number",
           "type": {
             "name": "integer",
@@ -182,7 +207,7 @@
           "createdAt": 1765220394681
         },
         {
-          "id": "15",
+          "id": "17",
           "name": "position",
           "type": {
             "name": "integer",
@@ -197,11 +222,11 @@
       ],
       "indexes": [
         {
-          "id": "16",
+          "id": "18",
           "name": "track_albums_pk",
           "fieldIds": [
-            "12",
-            "13"
+            "14",
+            "15"
           ],
           "unique": true,
           "isPrimaryKey": true,
@@ -217,13 +242,13 @@
       "diagramId": "rg51qhpg8sft"
     },
     {
-      "id": "17",
+      "id": "19",
       "name": "track_artists",
       "x": -1260,
       "y": 40,
       "fields": [
         {
-          "id": "18",
+          "id": "20",
           "name": "track_id",
           "type": {
             "name": "uuid",
@@ -236,7 +261,7 @@
           "createdAt": 1765219370257
         },
         {
-          "id": "19",
+          "id": "21",
           "name": "artist_id",
           "type": {
             "name": "uuid",
@@ -249,7 +274,7 @@
           "createdAt": 1765219379523
         },
         {
-          "id": "20",
+          "id": "22",
           "name": "is_primary",
           "type": {
             "name": "boolean",
@@ -263,7 +288,7 @@
           "default": "true"
         },
         {
-          "id": "21",
+          "id": "23",
           "name": "order",
           "type": {
             "name": "integer",
@@ -276,7 +301,7 @@
           "createdAt": 1765219872275
         },
         {
-          "id": "22",
+          "id": "24",
           "name": "join_phrase",
           "type": {
             "name": "text",
@@ -291,11 +316,11 @@
       ],
       "indexes": [
         {
-          "id": "23",
+          "id": "25",
           "name": "track_artists_pk",
           "fieldIds": [
-            "18",
-            "19"
+            "20",
+            "21"
           ],
           "unique": true,
           "isPrimaryKey": true,
@@ -311,13 +336,13 @@
       "diagramId": "rg51qhpg8sft"
     },
     {
-      "id": "24",
+      "id": "26",
       "name": "artists",
       "x": -1260,
       "y": -180,
       "fields": [
         {
-          "id": "25",
+          "id": "27",
           "name": "id",
           "type": {
             "name": "uuid",
@@ -330,7 +355,7 @@
           "createdAt": 1765217240172
         },
         {
-          "id": "26",
+          "id": "28",
           "name": "name",
           "type": {
             "name": "text",
@@ -343,7 +368,7 @@
           "createdAt": 1765218444883
         },
         {
-          "id": "27",
+          "id": "29",
           "name": "mbid",
           "type": {
             "name": "text",
@@ -356,7 +381,7 @@
           "createdAt": 1765218459532
         },
         {
-          "id": "28",
+          "id": "30",
           "name": "image_url",
           "type": {
             "name": "text",
@@ -371,10 +396,10 @@
       ],
       "indexes": [
         {
-          "id": "29",
+          "id": "31",
           "name": "pk_artists_id",
           "fieldIds": [
-            "25"
+            "27"
           ],
           "unique": true,
           "isPrimaryKey": true,
@@ -390,13 +415,13 @@
       "diagramId": "rg51qhpg8sft"
     },
     {
-      "id": "30",
+      "id": "32",
       "name": "artists_groups",
       "x": -920,
       "y": -180,
       "fields": [
         {
-          "id": "31",
+          "id": "33",
           "name": "member_id",
           "type": {
             "name": "uuid",
@@ -409,7 +434,7 @@
           "createdAt": 1765218518364
         },
         {
-          "id": "32",
+          "id": "34",
           "name": "group_id",
           "type": {
             "name": "uuid",
@@ -424,11 +449,11 @@
       ],
       "indexes": [
         {
-          "id": "33",
+          "id": "35",
           "name": "artists_groups_pk",
           "fieldIds": [
-            "31",
-            "32"
+            "33",
+            "34"
           ],
           "unique": true,
           "isPrimaryKey": true,
@@ -444,13 +469,13 @@
       "diagramId": "rg51qhpg8sft"
     },
     {
-      "id": "34",
+      "id": "36",
       "name": "users",
       "x": -960,
       "y": -580,
       "fields": [
         {
-          "id": "35",
+          "id": "37",
           "name": "id",
           "type": {
             "name": "uuid",
@@ -463,7 +488,7 @@
           "createdAt": 1765217424331
         },
         {
-          "id": "36",
+          "id": "38",
           "name": "email",
           "type": {
             "name": "text",
@@ -476,7 +501,7 @@
           "createdAt": 1765217435500
         },
         {
-          "id": "37",
+          "id": "39",
           "name": "username",
           "type": {
             "name": "text",
@@ -489,7 +514,7 @@
           "createdAt": 1765217444926
         },
         {
-          "id": "38",
+          "id": "40",
           "name": "image_url",
           "type": {
             "name": "text",
@@ -502,7 +527,7 @@
           "createdAt": 1765217551024
         },
         {
-          "id": "39",
+          "id": "41",
           "name": "role",
           "type": {
             "id": "user_role",
@@ -514,7 +539,7 @@
           "createdAt": 1765217451535
         },
         {
-          "id": "40",
+          "id": "42",
           "name": "created_at",
           "type": {
             "name": "timestamptz",
@@ -529,10 +554,10 @@
       ],
       "indexes": [
         {
-          "id": "41",
+          "id": "43",
           "name": "pk_users_id",
           "fieldIds": [
-            "35"
+            "37"
           ],
           "unique": true,
           "isPrimaryKey": true,
@@ -548,13 +573,13 @@
       "diagramId": "rg51qhpg8sft"
     },
     {
-      "id": "42",
+      "id": "44",
       "name": "tracks",
       "x": -920,
       "y": 40,
       "fields": [
         {
-          "id": "43",
+          "id": "45",
           "name": "id",
           "type": {
             "name": "uuid",
@@ -567,7 +592,7 @@
           "createdAt": 1765218949937
         },
         {
-          "id": "44",
+          "id": "46",
           "name": "title",
           "type": {
             "name": "text",
@@ -580,7 +605,7 @@
           "createdAt": 1765218980186
         },
         {
-          "id": "45",
+          "id": "47",
           "name": "duration_ms",
           "type": {
             "name": "integer",
@@ -593,7 +618,7 @@
           "createdAt": 1765218988383
         },
         {
-          "id": "46",
+          "id": "48",
           "name": "mbid",
           "type": {
             "name": "text",
@@ -606,7 +631,7 @@
           "createdAt": 1765219631517
         },
         {
-          "id": "47",
+          "id": "49",
           "name": "isrc",
           "type": {
             "name": "text",
@@ -619,7 +644,7 @@
           "createdAt": 1765218997932
         },
         {
-          "id": "48",
+          "id": "50",
           "name": "explicit",
           "type": {
             "name": "boolean",
@@ -634,10 +659,10 @@
       ],
       "indexes": [
         {
-          "id": "49",
+          "id": "51",
           "name": "pk_tracks_id",
           "fieldIds": [
-            "43"
+            "45"
           ],
           "unique": true,
           "isPrimaryKey": true,
@@ -653,13 +678,13 @@
       "diagramId": "rg51qhpg8sft"
     },
     {
-      "id": "50",
+      "id": "52",
       "name": "accounts",
       "x": -1300,
       "y": -640,
       "fields": [
         {
-          "id": "51",
+          "id": "53",
           "name": "id",
           "type": {
             "name": "uuid",
@@ -672,7 +697,7 @@
           "createdAt": 1765218017298
         },
         {
-          "id": "52",
+          "id": "54",
           "name": "user_id",
           "type": {
             "name": "uuid",
@@ -685,7 +710,7 @@
           "createdAt": 1765218025541
         },
         {
-          "id": "53",
+          "id": "55",
           "name": "provider",
           "type": {
             "id": "account_provider",
@@ -697,7 +722,7 @@
           "createdAt": 1765218081159
         },
         {
-          "id": "54",
+          "id": "56",
           "name": "provider_account_id",
           "type": {
             "name": "text",
@@ -710,7 +735,7 @@
           "createdAt": 1765218108984
         },
         {
-          "id": "55",
+          "id": "57",
           "name": "access_token",
           "type": {
             "name": "text",
@@ -723,7 +748,7 @@
           "createdAt": 1765218131699
         },
         {
-          "id": "56",
+          "id": "58",
           "name": "refresh_token",
           "type": {
             "name": "text",
@@ -736,7 +761,7 @@
           "createdAt": 1765218139257
         },
         {
-          "id": "57",
+          "id": "59",
           "name": "expires_at",
           "type": {
             "name": "integer",
@@ -749,7 +774,7 @@
           "createdAt": 1765218146009
         },
         {
-          "id": "58",
+          "id": "60",
           "name": "scope",
           "type": {
             "name": "text",
@@ -764,10 +789,10 @@
       ],
       "indexes": [
         {
-          "id": "59",
+          "id": "61",
           "name": "pk_accounts_id",
           "fieldIds": [
-            "51"
+            "53"
           ],
           "unique": true,
           "isPrimaryKey": true,
@@ -783,13 +808,13 @@
       "diagramId": "rg51qhpg8sft"
     },
     {
-      "id": "60",
+      "id": "62",
       "name": "albums",
       "x": -1260,
       "y": 300,
       "fields": [
         {
-          "id": "61",
+          "id": "63",
           "name": "id",
           "type": {
             "name": "uuid",
@@ -802,7 +827,7 @@
           "createdAt": 1765218647451
         },
         {
-          "id": "62",
+          "id": "64",
           "name": "artist_id",
           "type": {
             "name": "uuid",
@@ -815,7 +840,7 @@
           "createdAt": 1765218678982
         },
         {
-          "id": "63",
+          "id": "65",
           "name": "title",
           "type": {
             "name": "text",
@@ -828,7 +853,7 @@
           "createdAt": 1765218826860
         },
         {
-          "id": "64",
+          "id": "66",
           "name": "release_date",
           "type": {
             "name": "date",
@@ -841,7 +866,7 @@
           "createdAt": 1765218831484
         },
         {
-          "id": "65",
+          "id": "67",
           "name": "image_url",
           "type": {
             "name": "text",
@@ -854,7 +879,7 @@
           "createdAt": 1765218844925
         },
         {
-          "id": "66",
+          "id": "68",
           "name": "mbid",
           "type": {
             "name": "text",
@@ -869,10 +894,10 @@
       ],
       "indexes": [
         {
-          "id": "67",
+          "id": "69",
           "name": "pk_albums_id",
           "fieldIds": [
-            "61"
+            "63"
           ],
           "unique": true,
           "isPrimaryKey": true,
@@ -890,25 +915,25 @@
   ],
   "relationships": [
     {
-      "id": "68",
+      "id": "70",
       "name": "albums_id_fk",
       "sourceSchema": "public",
-      "sourceTableId": "60",
+      "sourceTableId": "62",
       "targetSchema": "public",
-      "targetTableId": "11",
-      "sourceFieldId": "61",
-      "targetFieldId": "13",
+      "targetTableId": "13",
+      "sourceFieldId": "63",
+      "targetFieldId": "15",
       "sourceCardinality": "one",
       "targetCardinality": "many",
       "createdAt": 1765222104049,
       "diagramId": "rg51qhpg8sft"
     },
     {
-      "id": "69",
+      "id": "71",
       "name": "albums_id_scrobbles_album_id",
-      "sourceTableId": "60",
+      "sourceTableId": "62",
       "targetTableId": "1",
-      "sourceFieldId": "61",
+      "sourceFieldId": "63",
       "targetFieldId": "5",
       "sourceCardinality": "one",
       "targetCardinality": "many",
@@ -916,95 +941,95 @@
       "diagramId": "rg51qhpg8sft"
     },
     {
-      "id": "70",
+      "id": "72",
       "name": "artists_id_fk",
       "sourceSchema": "public",
-      "sourceTableId": "24",
+      "sourceTableId": "26",
       "targetSchema": "public",
-      "targetTableId": "17",
-      "sourceFieldId": "25",
-      "targetFieldId": "19",
+      "targetTableId": "19",
+      "sourceFieldId": "27",
+      "targetFieldId": "21",
       "sourceCardinality": "one",
       "targetCardinality": "many",
       "createdAt": 1765222013656,
       "diagramId": "rg51qhpg8sft"
     },
     {
-      "id": "71",
+      "id": "73",
       "name": "artists_id_fk",
       "sourceSchema": "public",
-      "sourceTableId": "24",
+      "sourceTableId": "26",
       "targetSchema": "public",
-      "targetTableId": "60",
-      "sourceFieldId": "25",
-      "targetFieldId": "62",
+      "targetTableId": "62",
+      "sourceFieldId": "27",
+      "targetFieldId": "64",
       "sourceCardinality": "one",
       "targetCardinality": "many",
       "createdAt": 1765222001836,
       "diagramId": "rg51qhpg8sft"
     },
     {
-      "id": "72",
+      "id": "74",
       "name": "artists_id_fk",
       "sourceSchema": "public",
-      "sourceTableId": "24",
+      "sourceTableId": "26",
       "targetSchema": "public",
-      "targetTableId": "30",
-      "sourceFieldId": "25",
-      "targetFieldId": "32",
+      "targetTableId": "32",
+      "sourceFieldId": "27",
+      "targetFieldId": "34",
       "sourceCardinality": "one",
       "targetCardinality": "many",
       "createdAt": 1765222068024,
       "diagramId": "rg51qhpg8sft"
     },
     {
-      "id": "73",
+      "id": "75",
       "name": "artists_id_fk",
       "sourceSchema": "public",
-      "sourceTableId": "24",
+      "sourceTableId": "26",
       "targetSchema": "public",
-      "targetTableId": "30",
-      "sourceFieldId": "25",
-      "targetFieldId": "31",
+      "targetTableId": "32",
+      "sourceFieldId": "27",
+      "targetFieldId": "33",
       "sourceCardinality": "one",
       "targetCardinality": "many",
       "createdAt": 1765222073610,
       "diagramId": "rg51qhpg8sft"
     },
     {
-      "id": "74",
+      "id": "76",
       "name": "tracks_id_fk",
       "sourceSchema": "public",
-      "sourceTableId": "42",
+      "sourceTableId": "44",
       "targetSchema": "public",
-      "targetTableId": "17",
-      "sourceFieldId": "43",
-      "targetFieldId": "18",
+      "targetTableId": "19",
+      "sourceFieldId": "45",
+      "targetFieldId": "20",
       "sourceCardinality": "one",
       "targetCardinality": "many",
       "createdAt": 1765222033947,
       "diagramId": "rg51qhpg8sft"
     },
     {
-      "id": "75",
+      "id": "77",
       "name": "tracks_id_fk",
       "sourceSchema": "public",
-      "sourceTableId": "42",
+      "sourceTableId": "44",
       "targetSchema": "public",
-      "targetTableId": "11",
-      "sourceFieldId": "43",
-      "targetFieldId": "12",
+      "targetTableId": "13",
+      "sourceFieldId": "45",
+      "targetFieldId": "14",
       "sourceCardinality": "one",
       "targetCardinality": "many",
       "createdAt": 1765222110818,
       "diagramId": "rg51qhpg8sft"
     },
     {
-      "id": "76",
+      "id": "78",
       "name": "tracks_id_scrobbles_track_id",
-      "sourceTableId": "42",
+      "sourceTableId": "44",
       "targetTableId": "1",
-      "sourceFieldId": "43",
+      "sourceFieldId": "45",
       "targetFieldId": "4",
       "sourceCardinality": "one",
       "targetCardinality": "many",
@@ -1012,25 +1037,25 @@
       "diagramId": "rg51qhpg8sft"
     },
     {
-      "id": "77",
+      "id": "79",
       "name": "users_id_fk",
       "sourceSchema": "public",
-      "sourceTableId": "34",
+      "sourceTableId": "36",
       "targetSchema": "public",
-      "targetTableId": "50",
-      "sourceFieldId": "35",
-      "targetFieldId": "52",
+      "targetTableId": "52",
+      "sourceFieldId": "37",
+      "targetFieldId": "54",
       "sourceCardinality": "one",
       "targetCardinality": "many",
       "createdAt": 1765222269820,
       "diagramId": "rg51qhpg8sft"
     },
     {
-      "id": "78",
+      "id": "80",
       "name": "users_id_scrobbles_user_id",
-      "sourceTableId": "34",
+      "sourceTableId": "36",
       "targetTableId": "1",
-      "sourceFieldId": "35",
+      "sourceFieldId": "37",
       "targetFieldId": "3",
       "sourceCardinality": "one",
       "targetCardinality": "many",
@@ -1041,17 +1066,17 @@
   "dependencies": [],
   "areas": [
     {
-      "id": "79",
+      "id": "81",
       "name": "History",
       "x": -360,
       "y": -80,
-      "width": 300,
-      "height": 380,
+      "width": 303,
+      "height": 436,
       "color": "#ffe374",
       "diagramId": "rg51qhpg8sft"
     },
     {
-      "id": "80",
+      "id": "82",
       "name": "User Management & Auth",
       "x": -1340,
       "y": -700,
@@ -1061,7 +1086,7 @@
       "diagramId": "rg51qhpg8sft"
     },
     {
-      "id": "81",
+      "id": "83",
       "name": "Music Catalog",
       "x": -1340,
       "y": -240,
@@ -1073,7 +1098,7 @@
   ],
   "customTypes": [
     {
-      "id": "82",
+      "id": "84",
       "schema": "",
       "name": "account_provider",
       "kind": "enum",
@@ -1084,7 +1109,7 @@
       "diagramId": "rg51qhpg8sft"
     },
     {
-      "id": "83",
+      "id": "85",
       "schema": "",
       "name": "user_role",
       "kind": "enum",

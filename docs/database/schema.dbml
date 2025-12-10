@@ -7,23 +7,25 @@ Enum "user_role" {
     "user"
 }
 
-Table "scrobbles" {
+Table "public"."scrobbles" {
   "id" uuid [pk, not null]
-  "user_id" uuid [not null, ref: < "users"."id"]
-  "track_id" uuid [not null, ref: < "tracks"."id"]
-  "album_id" uuid [ref: < "albums"."id"]
+  "user_id" uuid [not null, ref: < "public"."users"."id"]
+  "track_id" uuid [not null, ref: < "public"."tracks"."id"]
+  "album_id" uuid [ref: < "public"."albums"."id"]
   "played_at" timestamptz [not null]
   "played_duration_ms" integer [not null]
   "skipped" boolean [default: false]
+  "is_imported" boolean [not null, default: false]
+  "provider" account_provider [not null]
 
   Indexes {
     (user_id, track_id, played_at) [unique, name: "no_duplicate_scrobbles"]
   }
 }
 
-Table "track_albums" {
-  "track_id" uuid [not null]
-  "album_id" uuid [not null]
+Table "public"."track_albums" {
+  "track_id" uuid [not null, ref: < "public"."tracks"."id"]
+  "album_id" uuid [not null, ref: < "public"."albums"."id"]
   "disc_number" integer
   "position" integer
 
@@ -32,9 +34,9 @@ Table "track_albums" {
   }
 }
 
-Table "track_artists" {
-  "track_id" uuid [not null]
-  "artist_id" uuid [not null]
+Table "public"."track_artists" {
+  "track_id" uuid [not null, ref: < "public"."tracks"."id"]
+  "artist_id" uuid [not null, ref: < "public"."artists"."id"]
   "is_primary" boolean [not null, default: true]
   "order" integer [not null]
   "join_phrase" text [not null]
@@ -44,23 +46,22 @@ Table "track_artists" {
   }
 }
 
-Table "artists" {
-  "id" uuid [pk, not null, ref: < "track_artists"."artist_id", ref: < "artists_groups"."member_id", ref: < "artists_groups"."group_id"]
+Table "public"."artists" {
+  "id" uuid [pk, not null]
   "name" text [not null]
   "mbid" text [unique]
   "image_url" text
 }
 
-Table "artists_groups" {
-  "member_id" uuid [not null]
-  "group_id" uuid [not null]
-
+Table "public"."artists_groups" {
+  "member_id" uuid [not null, ref: < "public"."artists"."id"]
+  "group_id" uuid [not null, ref: < "public"."artists"."id"]
   Indexes {
     (member_id, group_id) [pk, name: "artists_groups_pk"]
   }
 }
 
-Table "users" {
+Table "public"."users" {
   "id" uuid [pk, not null]
   "email" text [unique, not null]
   "username" text [unique]
@@ -69,8 +70,8 @@ Table "users" {
   "created_at" timestamptz [not null]
 }
 
-Table "tracks" {
-  "id" uuid [pk, not null, ref: < "track_albums"."track_id", ref: < "track_artists"."track_id"]
+Table "public"."tracks" {
+  "id" uuid [pk, not null]
   "title" text [not null]
   "duration_ms" integer
   "mbid" text
@@ -78,9 +79,9 @@ Table "tracks" {
   "explicit" boolean [not null]
 }
 
-Table "accounts" {
+Table "public"."accounts" {
   "id" uuid [pk, not null]
-  "user_id" uuid [not null, ref: < "users"."id"]
+  "user_id" uuid [not null, ref: < "public"."users"."id"]
   "provider" account_provider [not null]
   "provider_account_id" text [not null]
   "access_token" text
@@ -89,9 +90,9 @@ Table "accounts" {
   "scope" text
 }
 
-Table "albums" {
-  "id" uuid [pk, not null, ref: < "track_albums"."album_id"]
-  "artist_id" uuid [not null, ref: < "artists"."id"]
+Table "public"."albums" {
+  "id" uuid [pk, not null]
+  "artist_id" uuid [not null, ref: < "public"."artists"."id"]
   "title" text [not null]
   "release_date" date
   "image_url" text
