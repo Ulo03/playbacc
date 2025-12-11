@@ -1,27 +1,6 @@
-import { z } from "zod";
-import { accountProviderSchema } from "./enums";
+import { createInsertSchema, createSelectSchema, createUpdateSchema } from "drizzle-zod";
+import { accounts } from "@playbacc/api/src/db/schema";
 
-// Account Schema
-export const accountSchema = z.object({
-    id: z.uuid(),
-    user_id: z.uuid(),
-    provider: accountProviderSchema,
-    external_id: z.string(),
-    access_token: z.string().nullish(),
-    refresh_token: z.string().nullish(),
-    expires_in: z.number().nullish(),
-    scope: z.string().nullish(),
-});
-
-// Account Type
-export type Account = z.infer<typeof accountSchema>;
-
-// Insert Schema
-export const createAccountSchema = accountSchema.omit({
-    id: true,
-});
-
-// Update Schema
-export const updateAccountSchema = accountSchema.partial().omit({
-    id: true,
-});
+export const accountSchema = createSelectSchema(accounts);
+export const createAccountSchema = createInsertSchema(accounts);
+export const updateAccountSchema = createUpdateSchema(accounts);

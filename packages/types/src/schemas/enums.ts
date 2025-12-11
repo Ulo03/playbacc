@@ -1,9 +1,8 @@
-import { z } from "zod";
+import { createSelectSchema } from "drizzle-zod";
+import { accountProviderEnum, userRoleEnum } from "@playbacc/api/src/db/enums";
 
 // Account Provider Enum
-export const accountProviderSchema = z.enum(["spotify"]);
-export type AccountProvider = z.infer<typeof accountProviderSchema>;
+export const accountProviderSchema = createSelectSchema(accountProviderEnum);
 
 // User Role Enum
-export const userRoleSchema = z.enum(["admin", "user"]);
-export type UserRole = z.infer<typeof userRoleSchema>;
+export const userRoleSchema = createSelectSchema(userRoleEnum);

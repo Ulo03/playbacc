@@ -1,13 +1,5 @@
-import { z } from "zod";
+import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import { artists_groups } from "@playbacc/api/src/db/schema";
 
-// Artist Group Schema
-export const artistGroupSchema = z.object({
-    member_id: z.uuid(),
-    group_id: z.uuid(),
-});
-
-// Artist Group Type
-export type ArtistGroup = z.infer<typeof artistGroupSchema>;
-
-// Insert Schema
-export const createArtistGroupSchema = artistGroupSchema;
+export const artistGroupSchema = createSelectSchema(artists_groups);
+export const createArtistGroupSchema = createInsertSchema(artists_groups);

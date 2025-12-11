@@ -1,27 +1,6 @@
-import { z } from "zod";
-import { userRoleSchema } from "./enums";
+import { createInsertSchema, createSelectSchema, createUpdateSchema } from "drizzle-zod";
+import { users } from "@playbacc/api/src/db/schema";
 
-// User Schema
-export const userSchema = z.object({
-    id: z.uuid(),
-    email: z.email(),
-    username: z.string().nullish(),
-    image_url: z.url().nullish(),
-    role: userRoleSchema,
-    created_at: z.iso.datetime({ offset: true }),
-});
-
-// User Type
-export type User = z.infer<typeof userSchema>;
-
-// Insert Schema
-export const createUserSchema = userSchema.omit({
-    id: true,
-    created_at: true,
-});
-
-// Update Schema
-export const updateUserSchema = userSchema.omit({
-    id: true,
-    created_at: true,
-});
+export const userSchema = createSelectSchema(users);
+export const createUserSchema = createInsertSchema(users);
+export const updateUserSchema = createUpdateSchema(users);

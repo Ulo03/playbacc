@@ -1,15 +1,6 @@
-import { z } from "zod";
+import { createInsertSchema, createSelectSchema, createUpdateSchema } from "drizzle-zod";
+import { track_albums } from "@playbacc/api/src/db/schema";
 
-// Track Album Schema
-export const trackAlbumSchema = z.object({
-    track_id: z.uuid(),
-    album_id: z.uuid(),
-    disc_number: z.number().nullish(),
-    position: z.number().nullish(),
-});
-
-// Track Album Type
-export type TrackAlbum = z.infer<typeof trackAlbumSchema>;
-
-// Insert Schema
-export const createTrackAlbumSchema = trackAlbumSchema;
+export const trackAlbumSchema = createSelectSchema(track_albums);
+export const createTrackAlbumSchema = createInsertSchema(track_albums);
+export const updateTrackAlbumSchema = createUpdateSchema(track_albums);
