@@ -4,9 +4,11 @@
     "main": "src/index.ts",
     "types": "src/index.ts",
     "dependencies": {
+        "@playbacc/api": "workspace:*",
+        "drizzle-zod": "^0.8.3",
         "zod": "^4.1.13"
     },
     "peerDependencies": {
-        "zod": "^4.1.13"
+        "drizzle-orm": "^0.45.1",
     }
 }
