@@ -2,7 +2,7 @@
   "id": "0",
   "name": "playbacc",
   "createdAt": "2025-12-08T17:52:13.247Z",
-  "updatedAt": "2025-12-11T15:08:51.512Z",
+  "updatedAt": "2025-12-11T15:15:16.013Z",
   "databaseType": "postgresql",
   "tables": [
     {
@@ -762,7 +762,7 @@
         },
         {
           "id": "59",
-          "name": "expires_at",
+          "name": "expires_in",
           "type": {
             "name": "integer",
             "id": "integer",

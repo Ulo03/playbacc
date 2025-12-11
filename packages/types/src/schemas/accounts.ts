@@ -9,7 +9,7 @@ export const accountSchema = z.object({
     external_id: z.string(),
     access_token: z.string().nullish(),
     refresh_token: z.string().nullish(),
-    expires_at: z.number().nullish(),
+    expires_in: z.number().nullish(),
     scope: z.string().nullish(),
 });
 

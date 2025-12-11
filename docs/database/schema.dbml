@@ -86,7 +86,7 @@ Table "public"."accounts" {
   "external_id" text [not null]
   "access_token" text
   "refresh_token" text
-  "expires_at" integer
+  "expires_in" integer
   "scope" text
 }
 
