@@ -14,7 +14,7 @@ Table "public"."scrobbles" {
   "album_id" uuid [ref: < "public"."albums"."id"]
   "played_at" timestamptz [not null]
   "played_duration_ms" integer [not null]
-  "skipped" boolean [default: false]
+  "skipped" boolean [not null, default: false]
   "is_imported" boolean [not null, default: false]
   "provider" account_provider [not null]
 
@@ -74,8 +74,8 @@ Table "public"."tracks" {
   "id" uuid [pk, not null]
   "title" text [not null]
   "duration_ms" integer
-  "mbid" text
-  "isrc" text
+  "mbid" text [unique]
+  "isrc" text [unique]
   "explicit" boolean [not null]
 }
 
@@ -86,7 +86,7 @@ Table "public"."accounts" {
   "external_id" text [not null]
   "access_token" text
   "refresh_token" text
-  "expires_in" integer
+  "expires_at" integer
   "scope" text
 }
 
@@ -96,5 +96,5 @@ Table "public"."albums" {
   "title" text [not null]
   "release_date" date
   "image_url" text
-  "mbid" text
+  "mbid" text [unique]
 }

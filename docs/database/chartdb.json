@@ -2,7 +2,7 @@
   "id": "0",
   "name": "playbacc",
   "createdAt": "2025-12-08T17:52:13.247Z",
-  "updatedAt": "2025-12-10T21:57:03.738Z",
+  "updatedAt": "2025-12-11T15:08:51.512Z",
   "databaseType": "postgresql",
   "tables": [
     {
@@ -97,7 +97,7 @@
             "id": "boolean",
             "usageLevel": 1
           },
-          "nullable": true,
+          "nullable": false,
           "primaryKey": false,
           "unique": false,
           "createdAt": 1765220843499,
@@ -152,8 +152,8 @@
           "createdAt": 1765220843499
         }
       ],
-      "x": -320,
-      "y": -20,
+      "x": -319.53064331545824,
+      "y": -24.53064331545822,
       "color": "#ffe374",
       "isView": false,
       "createdAt": 1765220843499,
@@ -627,7 +627,7 @@
           },
           "nullable": true,
           "primaryKey": false,
-          "unique": false,
+          "unique": true,
           "createdAt": 1765219631517
         },
         {
@@ -640,7 +640,7 @@
           },
           "nullable": true,
           "primaryKey": false,
-          "unique": false,
+          "unique": true,
           "createdAt": 1765218997932
         },
         {
@@ -762,7 +762,7 @@
         },
         {
           "id": "59",
-          "name": "expires_in",
+          "name": "expires_at",
           "type": {
             "name": "integer",
             "id": "integer",
@@ -888,7 +888,7 @@
           },
           "nullable": true,
           "primaryKey": false,
-          "unique": false,
+          "unique": true,
           "createdAt": 1765218862098
         }
       ],
@@ -1068,8 +1068,8 @@
     {
       "id": "81",
       "name": "History",
-      "x": -360,
-      "y": -80,
+      "x": -359.53064331545824,
+      "y": -84.53064331545822,
       "width": 303,
       "height": 436,
       "color": "#ffe374",
