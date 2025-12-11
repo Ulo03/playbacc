@@ -1,5 +1,5 @@
 import { createInsertSchema, createSelectSchema, createUpdateSchema } from "drizzle-zod";
-import { track_albums } from "@playbacc/api/src/db/schema";
+import { track_albums } from "../db/schema";
 
 export const trackAlbumSchema = createSelectSchema(track_albums);
 export const createTrackAlbumSchema = createInsertSchema(track_albums);

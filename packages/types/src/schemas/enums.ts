@@ -1,5 +1,5 @@
 import { createSelectSchema } from "drizzle-zod";
-import { accountProviderEnum, userRoleEnum } from "@playbacc/api/src/db/enums";
+import { accountProviderEnum, userRoleEnum } from "../db/enums";
 
 // Account Provider Enum
 export const accountProviderSchema = createSelectSchema(accountProviderEnum);

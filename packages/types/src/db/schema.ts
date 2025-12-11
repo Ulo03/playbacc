@@ -95,3 +95,4 @@ export const scrobbles = pgTable('scrobbles', {
 }, (table) => [
     unique('no_duplicate_scrobbles').on(table.user_id, table.track_id, table.played_at),
 ]);
+

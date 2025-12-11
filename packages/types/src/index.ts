@@ -1,3 +1,4 @@
+// Export Zod schemas
 export * from './schemas/common';
 export * from './schemas/enums';
 export * from './schemas/users';
@@ -8,3 +9,7 @@ export * from './schemas/tracks';
 export * from './schemas/tracks-artists';
 export * from './schemas/tracks-albums';
 export * from './schemas/scrobbles';
+
+// Export Drizzle database schemas
+export * from './db/enums';
+export * from './db/schema';
