@@ -3,9 +3,10 @@
   "scripts": {
     "dev": "bun run --hot src/index.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:ensure": "bun run scripts/ensure-db.ts",
+    "db:migrate": "bun run db:ensure && drizzle-kit migrate",
+    "db:push": "bun run db:ensure && drizzle-kit push",
+    "db:studio": "bun run db:ensure && drizzle-kit studio"
   },
   "dependencies": {
     "@playbacc/types": "workspace:*",
