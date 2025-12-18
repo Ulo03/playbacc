@@ -1,13 +1,18 @@
 {
     "name": "playbacc-monorepo",
     "private": true,
-    "workspaces": [
-      "apps/*",
-      "packages/*"
-    ],
     "scripts": {
-      "dev": "bun --filter '*' run dev",
-      "build": "bun --filter '*' run build",
-      "db:push": "bun --filter api run db:push"
+        "dev": "bun --filter '*' run dev",
+        "build": "bun --filter '*' run build",
+        "db:push": "bun --filter api run db:push",
+        "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
+        "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\""
+    },
+    "workspaces": [
+        "apps/*",
+        "packages/*"
+    ],
+    "devDependencies": {
+        "prettier": "^3.7.4"
     }
-  }
+}

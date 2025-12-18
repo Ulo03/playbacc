@@ -3,6 +3,10 @@
     "version": "0.0.0",
     "main": "src/index.ts",
     "types": "src/index.ts",
+    "scripts": {
+        "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json}\"",
+        "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json}\""
+    },
     "dependencies": {
         "drizzle-zod": "^0.8.3",
         "zod": "^4.1.13"

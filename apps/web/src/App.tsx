@@ -1,7 +1,7 @@
-import { ComponentExample } from "@/components/component-example";
+import { ThemePicker } from "./components/theme-picker"
 
 export function App() {
-return <ComponentExample />;
+	return <ThemePicker />
 }
 
-export default App;
+export default App

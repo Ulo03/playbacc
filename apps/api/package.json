@@ -6,7 +6,9 @@
     "db:ensure": "bun run scripts/ensure-db.ts",
     "db:migrate": "bun run db:ensure && drizzle-kit migrate",
     "db:push": "bun run db:ensure && drizzle-kit push",
-    "db:studio": "bun run db:ensure && drizzle-kit studio"
+    "db:studio": "bun run db:ensure && drizzle-kit studio",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json}\""
   },
   "dependencies": {
     "@playbacc/types": "workspace:*",
