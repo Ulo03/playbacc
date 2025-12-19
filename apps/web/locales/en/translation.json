@@ -1,44 +1,44 @@
 {
-  "themePicker": {
-    "labels": {
-      "theme": "Theme",
-      "mode": "Mode"
-    },
-    "placeholders": {
-      "selectTheme": "Select theme..."
-    },
-    "modes": {
-      "light": "Light",
-      "dark": "Dark",
-      "system": "System"
-    },
-    "description": {
-      "by": "By",
-      "mode": "Mode"
-    },
-    "colors": {
-      "background": "Background",
-      "foreground": "Foreground",
-      "card": "Card",
-      "popover": "Popover",
-      "primary": "Primary",
-      "secondary": "Secondary",
-      "accent": "Accent",
-      "muted": "Muted",
-      "destructive": "Destructive",
-      "border": "Border",
-      "input": "Input",
-      "ring": "Ring",
-      "chart1": "Chart 1",
-      "chart2": "Chart 2",
-      "chart3": "Chart 3",
-      "chart4": "Chart 4",
-      "chart5": "Chart 5",
-      "sidebar": "Sidebar",
-      "sidebarPrimary": "Sidebar Primary",
-      "sidebarAccent": "Sidebar Accent",
-      "sidebarBorder": "Sidebar Border",
-      "sidebarRing": "Sidebar Ring"
-    }
-  }
+	"themePicker": {
+		"labels": {
+			"theme": "Theme",
+			"mode": "Mode"
+		},
+		"placeholders": {
+			"selectTheme": "Select theme..."
+		},
+		"modes": {
+			"light": "Light",
+			"dark": "Dark",
+			"system": "System"
+		},
+		"description": {
+			"by": "By",
+			"mode": "Mode"
+		},
+		"colors": {
+			"background": "Background",
+			"foreground": "Foreground",
+			"card": "Card",
+			"popover": "Popover",
+			"primary": "Primary",
+			"secondary": "Secondary",
+			"accent": "Accent",
+			"muted": "Muted",
+			"destructive": "Destructive",
+			"border": "Border",
+			"input": "Input",
+			"ring": "Ring",
+			"chart1": "Chart 1",
+			"chart2": "Chart 2",
+			"chart3": "Chart 3",
+			"chart4": "Chart 4",
+			"chart5": "Chart 5",
+			"sidebar": "Sidebar",
+			"sidebarPrimary": "Sidebar Primary",
+			"sidebarAccent": "Sidebar Accent",
+			"sidebarBorder": "Sidebar Border",
+			"sidebarRing": "Sidebar Ring"
+		}
+	}
 }

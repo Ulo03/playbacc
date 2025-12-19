@@ -87,8 +87,16 @@ function ColorCard({
 
 function getAllColors(variant: ThemeVariant, t: (key: string) => string) {
 	return [
-		{ name: t('themePicker.colors.background'), value: variant.background, colorKey: 'background' },
-		{ name: t('themePicker.colors.foreground'), value: variant.foreground, colorKey: 'foreground' },
+		{
+			name: t('themePicker.colors.background'),
+			value: variant.background,
+			colorKey: 'background',
+		},
+		{
+			name: t('themePicker.colors.foreground'),
+			value: variant.foreground,
+			colorKey: 'foreground',
+		},
 		{
 			name: t('themePicker.colors.card'),
 			value: variant.card,
@@ -125,15 +133,51 @@ function getAllColors(variant: ThemeVariant, t: (key: string) => string) {
 			foregroundValue: variant.mutedForeground,
 			colorKey: 'muted',
 		},
-		{ name: t('themePicker.colors.destructive'), value: variant.destructive, colorKey: 'destructive' },
-		{ name: t('themePicker.colors.border'), value: variant.border, colorKey: 'border' },
-		{ name: t('themePicker.colors.input'), value: variant.input, colorKey: 'input' },
-		{ name: t('themePicker.colors.ring'), value: variant.ring, colorKey: 'ring' },
-		{ name: t('themePicker.colors.chart1'), value: variant.chart1, colorKey: 'chart1' },
-		{ name: t('themePicker.colors.chart2'), value: variant.chart2, colorKey: 'chart2' },
-		{ name: t('themePicker.colors.chart3'), value: variant.chart3, colorKey: 'chart3' },
-		{ name: t('themePicker.colors.chart4'), value: variant.chart4, colorKey: 'chart4' },
-		{ name: t('themePicker.colors.chart5'), value: variant.chart5, colorKey: 'chart5' },
+		{
+			name: t('themePicker.colors.destructive'),
+			value: variant.destructive,
+			colorKey: 'destructive',
+		},
+		{
+			name: t('themePicker.colors.border'),
+			value: variant.border,
+			colorKey: 'border',
+		},
+		{
+			name: t('themePicker.colors.input'),
+			value: variant.input,
+			colorKey: 'input',
+		},
+		{
+			name: t('themePicker.colors.ring'),
+			value: variant.ring,
+			colorKey: 'ring',
+		},
+		{
+			name: t('themePicker.colors.chart1'),
+			value: variant.chart1,
+			colorKey: 'chart1',
+		},
+		{
+			name: t('themePicker.colors.chart2'),
+			value: variant.chart2,
+			colorKey: 'chart2',
+		},
+		{
+			name: t('themePicker.colors.chart3'),
+			value: variant.chart3,
+			colorKey: 'chart3',
+		},
+		{
+			name: t('themePicker.colors.chart4'),
+			value: variant.chart4,
+			colorKey: 'chart4',
+		},
+		{
+			name: t('themePicker.colors.chart5'),
+			value: variant.chart5,
+			colorKey: 'chart5',
+		},
 		{
 			name: t('themePicker.colors.sidebar'),
 			value: variant.sidebar,
@@ -152,8 +196,16 @@ function getAllColors(variant: ThemeVariant, t: (key: string) => string) {
 			foregroundValue: variant.sidebarAccentForeground,
 			colorKey: 'sidebarAccent',
 		},
-		{ name: t('themePicker.colors.sidebarBorder'), value: variant.sidebarBorder, colorKey: 'sidebarBorder' },
-		{ name: t('themePicker.colors.sidebarRing'), value: variant.sidebarRing, colorKey: 'sidebarRing' },
+		{
+			name: t('themePicker.colors.sidebarBorder'),
+			value: variant.sidebarBorder,
+			colorKey: 'sidebarBorder',
+		},
+		{
+			name: t('themePicker.colors.sidebarRing'),
+			value: variant.sidebarRing,
+			colorKey: 'sidebarRing',
+		},
 	]
 }
 
@@ -176,7 +228,9 @@ export function ThemePicker() {
 			{/* Controls Section */}
 			<div className="flex flex-col sm:flex-row gap-4">
 				<div className="flex-1 space-y-1.5 min-w-0">
-					<label className="text-xs font-medium block">{t('themePicker.labels.theme')}</label>
+					<label className="text-xs font-medium block">
+						{t('themePicker.labels.theme')}
+					</label>
 					<Combobox
 						value={theme}
 						onValueChange={(value) => {
@@ -184,7 +238,9 @@ export function ThemePicker() {
 						}}
 					>
 						<ComboboxInput
-							placeholder={t('themePicker.placeholders.selectTheme')}
+							placeholder={t(
+								'themePicker.placeholders.selectTheme'
+							)}
 							showClear={false}
 							value={currentTheme?.name || theme}
 							onChange={(e) => {
@@ -209,7 +265,9 @@ export function ThemePicker() {
 				</div>
 
 				<div className="flex-1 space-y-1.5 min-w-0 sm:max-w-[200px]">
-					<label className="text-xs font-medium block">{t('themePicker.labels.mode')}</label>
+					<label className="text-xs font-medium block">
+						{t('themePicker.labels.mode')}
+					</label>
 					<Select
 						value={mode}
 						onValueChange={(value) =>
@@ -220,9 +278,15 @@ export function ThemePicker() {
 							<SelectValue />
 						</SelectTrigger>
 						<SelectContent>
-							<SelectItem value="light">{t('themePicker.modes.light')}</SelectItem>
-							<SelectItem value="dark">{t('themePicker.modes.dark')}</SelectItem>
-							<SelectItem value="system">{t('themePicker.modes.system')}</SelectItem>
+							<SelectItem value="light">
+								{t('themePicker.modes.light')}
+							</SelectItem>
+							<SelectItem value="dark">
+								{t('themePicker.modes.dark')}
+							</SelectItem>
+							<SelectItem value="system">
+								{t('themePicker.modes.system')}
+							</SelectItem>
 						</SelectContent>
 					</Select>
 				</div>
@@ -234,8 +298,10 @@ export function ThemePicker() {
 					<CardHeader>
 						<CardTitle>{currentTheme.name}</CardTitle>
 						<CardDescription>
-							{currentTheme.description} • {t('themePicker.description.by')}{' '}
-							{currentTheme.author} • {t('themePicker.description.mode')}: {resolvedMode}
+							{currentTheme.description} •{' '}
+							{t('themePicker.description.by')}{' '}
+							{currentTheme.author} •{' '}
+							{t('themePicker.description.mode')}: {resolvedMode}
 						</CardDescription>
 					</CardHeader>
 				</Card>
