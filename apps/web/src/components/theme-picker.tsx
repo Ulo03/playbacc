@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from 'react-i18next'
 import { useTheme } from '@/hooks/use-theme'
 import {
 	Card,
@@ -29,6 +30,7 @@ interface ColorCardProps {
 	value: string
 	foregroundValue?: string
 	themeBackground?: string
+	colorKey: string
 }
 
 function ColorCard({
@@ -36,11 +38,12 @@ function ColorCard({
 	value,
 	foregroundValue,
 	themeBackground,
+	colorKey,
 }: ColorCardProps) {
 	// For Foreground color card, use background color as text color
 	// Otherwise use foregroundValue when available, or white for contrast
 	let textColor: string
-	if (name === 'Foreground' && themeBackground) {
+	if (colorKey === 'foreground' && themeBackground) {
 		textColor = themeBackground
 	} else {
 		textColor = foregroundValue || 'white'
@@ -82,70 +85,80 @@ function ColorCard({
 	)
 }
 
-function getAllColors(variant: ThemeVariant) {
+function getAllColors(variant: ThemeVariant, t: (key: string) => string) {
 	return [
-		{ name: 'Background', value: variant.background },
-		{ name: 'Foreground', value: variant.foreground },
+		{ name: t('themePicker.colors.background'), value: variant.background, colorKey: 'background' },
+		{ name: t('themePicker.colors.foreground'), value: variant.foreground, colorKey: 'foreground' },
 		{
-			name: 'Card',
+			name: t('themePicker.colors.card'),
 			value: variant.card,
 			foregroundValue: variant.cardForeground,
+			colorKey: 'card',
 		},
 		{
-			name: 'Popover',
+			name: t('themePicker.colors.popover'),
 			value: variant.popover,
 			foregroundValue: variant.popoverForeground,
+			colorKey: 'popover',
 		},
 		{
-			name: 'Primary',
+			name: t('themePicker.colors.primary'),
 			value: variant.primary,
 			foregroundValue: variant.primaryForeground,
+			colorKey: 'primary',
 		},
 		{
-			name: 'Secondary',
+			name: t('themePicker.colors.secondary'),
 			value: variant.secondary,
 			foregroundValue: variant.secondaryForeground,
+			colorKey: 'secondary',
 		},
 		{
-			name: 'Accent',
+			name: t('themePicker.colors.accent'),
 			value: variant.accent,
 			foregroundValue: variant.accentForeground,
+			colorKey: 'accent',
 		},
 		{
-			name: 'Muted',
+			name: t('themePicker.colors.muted'),
 			value: variant.muted,
 			foregroundValue: variant.mutedForeground,
+			colorKey: 'muted',
 		},
-		{ name: 'Destructive', value: variant.destructive },
-		{ name: 'Border', value: variant.border },
-		{ name: 'Input', value: variant.input },
-		{ name: 'Ring', value: variant.ring },
-		{ name: 'Chart 1', value: variant.chart1 },
-		{ name: 'Chart 2', value: variant.chart2 },
-		{ name: 'Chart 3', value: variant.chart3 },
-		{ name: 'Chart 4', value: variant.chart4 },
-		{ name: 'Chart 5', value: variant.chart5 },
+		{ name: t('themePicker.colors.destructive'), value: variant.destructive, colorKey: 'destructive' },
+		{ name: t('themePicker.colors.border'), value: variant.border, colorKey: 'border' },
+		{ name: t('themePicker.colors.input'), value: variant.input, colorKey: 'input' },
+		{ name: t('themePicker.colors.ring'), value: variant.ring, colorKey: 'ring' },
+		{ name: t('themePicker.colors.chart1'), value: variant.chart1, colorKey: 'chart1' },
+		{ name: t('themePicker.colors.chart2'), value: variant.chart2, colorKey: 'chart2' },
+		{ name: t('themePicker.colors.chart3'), value: variant.chart3, colorKey: 'chart3' },
+		{ name: t('themePicker.colors.chart4'), value: variant.chart4, colorKey: 'chart4' },
+		{ name: t('themePicker.colors.chart5'), value: variant.chart5, colorKey: 'chart5' },
 		{
-			name: 'Sidebar',
+			name: t('themePicker.colors.sidebar'),
 			value: variant.sidebar,
 			foregroundValue: variant.sidebarForeground,
+			colorKey: 'sidebar',
 		},
 		{
-			name: 'Sidebar Primary',
+			name: t('themePicker.colors.sidebarPrimary'),
 			value: variant.sidebarPrimary,
 			foregroundValue: variant.sidebarPrimaryForeground,
+			colorKey: 'sidebarPrimary',
 		},
 		{
-			name: 'Sidebar Accent',
+			name: t('themePicker.colors.sidebarAccent'),
 			value: variant.sidebarAccent,
 			foregroundValue: variant.sidebarAccentForeground,
+			colorKey: 'sidebarAccent',
 		},
-		{ name: 'Sidebar Border', value: variant.sidebarBorder },
-		{ name: 'Sidebar Ring', value: variant.sidebarRing },
+		{ name: t('themePicker.colors.sidebarBorder'), value: variant.sidebarBorder, colorKey: 'sidebarBorder' },
+		{ name: t('themePicker.colors.sidebarRing'), value: variant.sidebarRing, colorKey: 'sidebarRing' },
 	]
 }
 
 export function ThemePicker() {
+	const { t } = useTranslation()
 	const { theme, mode, resolvedMode, setTheme, setMode, themes } = useTheme()
 
 	const currentTheme = themes[theme]
@@ -156,14 +169,14 @@ export function ThemePicker() {
 		label: themes[key].name,
 	}))
 
-	const allColors = currentVariant ? getAllColors(currentVariant) : []
+	const allColors = currentVariant ? getAllColors(currentVariant, t) : []
 
 	return (
 		<div className="space-y-4 p-6">
 			{/* Controls Section */}
 			<div className="flex flex-col sm:flex-row gap-4">
 				<div className="flex-1 space-y-1.5 min-w-0">
-					<label className="text-xs font-medium block">Theme</label>
+					<label className="text-xs font-medium block">{t('themePicker.labels.theme')}</label>
 					<Combobox
 						value={theme}
 						onValueChange={(value) => {
@@ -171,7 +184,7 @@ export function ThemePicker() {
 						}}
 					>
 						<ComboboxInput
-							placeholder="Select theme..."
+							placeholder={t('themePicker.placeholders.selectTheme')}
 							showClear={false}
 							value={currentTheme?.name || theme}
 							onChange={(e) => {
@@ -196,7 +209,7 @@ export function ThemePicker() {
 				</div>
 
 				<div className="flex-1 space-y-1.5 min-w-0 sm:max-w-[200px]">
-					<label className="text-xs font-medium block">Mode</label>
+					<label className="text-xs font-medium block">{t('themePicker.labels.mode')}</label>
 					<Select
 						value={mode}
 						onValueChange={(value) =>
@@ -207,9 +220,9 @@ export function ThemePicker() {
 							<SelectValue />
 						</SelectTrigger>
 						<SelectContent>
-							<SelectItem value="light">Light</SelectItem>
-							<SelectItem value="dark">Dark</SelectItem>
-							<SelectItem value="system">System</SelectItem>
+							<SelectItem value="light">{t('themePicker.modes.light')}</SelectItem>
+							<SelectItem value="dark">{t('themePicker.modes.dark')}</SelectItem>
+							<SelectItem value="system">{t('themePicker.modes.system')}</SelectItem>
 						</SelectContent>
 					</Select>
 				</div>
@@ -221,8 +234,8 @@ export function ThemePicker() {
 					<CardHeader>
 						<CardTitle>{currentTheme.name}</CardTitle>
 						<CardDescription>
-							{currentTheme.description} • By{' '}
-							{currentTheme.author} • Mode: {resolvedMode}
+							{currentTheme.description} • {t('themePicker.description.by')}{' '}
+							{currentTheme.author} • {t('themePicker.description.mode')}: {resolvedMode}
 						</CardDescription>
 					</CardHeader>
 				</Card>
@@ -237,6 +250,7 @@ export function ThemePicker() {
 						value={color.value}
 						foregroundValue={color.foregroundValue}
 						themeBackground={currentVariant?.background}
+						colorKey={color.colorKey}
 					/>
 				))}
 			</div>
