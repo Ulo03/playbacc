@@ -1,4 +1,4 @@
-import { boolean, date, integer, pgTable, primaryKey, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { boolean, date, index, integer, pgTable, primaryKey, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import { accountProviderEnum, userRoleEnum } from './enums';
 
 // Users Table
@@ -96,3 +96,4 @@ export const scrobbles = pgTable('scrobbles', {
     unique('no_duplicate_scrobbles').on(table.user_id, table.track_id, table.played_at),
 ]);
 
+index('idx_no_duplicate_scrobbles').on(scrobbles.user_id, scrobbles.track_id, scrobbles.played_at);
