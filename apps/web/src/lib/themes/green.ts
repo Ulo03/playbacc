@@ -75,4 +75,3 @@ const greenTheme: Theme = {
 }
 
 export default greenTheme
-

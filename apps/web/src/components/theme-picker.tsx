@@ -31,7 +31,12 @@ interface ColorCardProps {
 	themeBackground?: string
 }
 
-function ColorCard({ name, value, foregroundValue, themeBackground }: ColorCardProps) {
+function ColorCard({
+	name,
+	value,
+	foregroundValue,
+	themeBackground,
+}: ColorCardProps) {
 	// For Foreground color card, use background color as text color
 	// Otherwise use foregroundValue when available, or white for contrast
 	let textColor: string
@@ -40,15 +45,15 @@ function ColorCard({ name, value, foregroundValue, themeBackground }: ColorCardP
 	} else {
 		textColor = foregroundValue || 'white'
 	}
-	
+
 	return (
-		<Card 
+		<Card
 			size="sm"
 			style={{ backgroundColor: value }}
 			className="border-border"
 		>
 			<CardHeader className="pb-2">
-				<CardTitle 
+				<CardTitle
 					className="text-xs font-medium"
 					style={{ color: textColor }}
 				>
@@ -57,14 +62,14 @@ function ColorCard({ name, value, foregroundValue, themeBackground }: ColorCardP
 			</CardHeader>
 			<CardContent className="space-y-1.5 pt-0">
 				<div className="space-y-0.5">
-					<p 
+					<p
 						className="text-[10px] font-mono break-all leading-tight opacity-90"
 						style={{ color: textColor }}
 					>
 						{value}
 					</p>
 					{foregroundValue && (
-						<p 
+						<p
 							className="text-[10px] font-mono break-all leading-tight opacity-90"
 							style={{ color: textColor }}
 						>
@@ -81,12 +86,36 @@ function getAllColors(variant: ThemeVariant) {
 	return [
 		{ name: 'Background', value: variant.background },
 		{ name: 'Foreground', value: variant.foreground },
-		{ name: 'Card', value: variant.card, foregroundValue: variant.cardForeground },
-		{ name: 'Popover', value: variant.popover, foregroundValue: variant.popoverForeground },
-		{ name: 'Primary', value: variant.primary, foregroundValue: variant.primaryForeground },
-		{ name: 'Secondary', value: variant.secondary, foregroundValue: variant.secondaryForeground },
-		{ name: 'Accent', value: variant.accent, foregroundValue: variant.accentForeground },
-		{ name: 'Muted', value: variant.muted, foregroundValue: variant.mutedForeground },
+		{
+			name: 'Card',
+			value: variant.card,
+			foregroundValue: variant.cardForeground,
+		},
+		{
+			name: 'Popover',
+			value: variant.popover,
+			foregroundValue: variant.popoverForeground,
+		},
+		{
+			name: 'Primary',
+			value: variant.primary,
+			foregroundValue: variant.primaryForeground,
+		},
+		{
+			name: 'Secondary',
+			value: variant.secondary,
+			foregroundValue: variant.secondaryForeground,
+		},
+		{
+			name: 'Accent',
+			value: variant.accent,
+			foregroundValue: variant.accentForeground,
+		},
+		{
+			name: 'Muted',
+			value: variant.muted,
+			foregroundValue: variant.mutedForeground,
+		},
 		{ name: 'Destructive', value: variant.destructive },
 		{ name: 'Border', value: variant.border },
 		{ name: 'Input', value: variant.input },
@@ -96,9 +125,21 @@ function getAllColors(variant: ThemeVariant) {
 		{ name: 'Chart 3', value: variant.chart3 },
 		{ name: 'Chart 4', value: variant.chart4 },
 		{ name: 'Chart 5', value: variant.chart5 },
-		{ name: 'Sidebar', value: variant.sidebar, foregroundValue: variant.sidebarForeground },
-		{ name: 'Sidebar Primary', value: variant.sidebarPrimary, foregroundValue: variant.sidebarPrimaryForeground },
-		{ name: 'Sidebar Accent', value: variant.sidebarAccent, foregroundValue: variant.sidebarAccentForeground },
+		{
+			name: 'Sidebar',
+			value: variant.sidebar,
+			foregroundValue: variant.sidebarForeground,
+		},
+		{
+			name: 'Sidebar Primary',
+			value: variant.sidebarPrimary,
+			foregroundValue: variant.sidebarPrimaryForeground,
+		},
+		{
+			name: 'Sidebar Accent',
+			value: variant.sidebarAccent,
+			foregroundValue: variant.sidebarAccentForeground,
+		},
 		{ name: 'Sidebar Border', value: variant.sidebarBorder },
 		{ name: 'Sidebar Ring', value: variant.sidebarRing },
 	]
@@ -106,17 +147,17 @@ function getAllColors(variant: ThemeVariant) {
 
 export function ThemePicker() {
 	const { theme, mode, resolvedMode, setTheme, setMode, themes } = useTheme()
-	
+
 	const currentTheme = themes[theme]
 	const currentVariant = currentTheme?.[resolvedMode] || currentTheme?.light
-	
+
 	const themeOptions = Object.keys(themes).map((key) => ({
 		value: key,
 		label: themes[key].name,
 	}))
-	
+
 	const allColors = currentVariant ? getAllColors(currentVariant) : []
-	
+
 	return (
 		<div className="space-y-4 p-6">
 			{/* Controls Section */}
@@ -142,7 +183,10 @@ export function ThemePicker() {
 						<ComboboxContent>
 							<ComboboxList>
 								{themeOptions.map((option) => (
-									<ComboboxItem key={option.value} value={option.value}>
+									<ComboboxItem
+										key={option.value}
+										value={option.value}
+									>
 										{option.label}
 									</ComboboxItem>
 								))}
@@ -150,10 +194,15 @@ export function ThemePicker() {
 						</ComboboxContent>
 					</Combobox>
 				</div>
-				
+
 				<div className="flex-1 space-y-1.5 min-w-0 sm:max-w-[200px]">
 					<label className="text-xs font-medium block">Mode</label>
-					<Select value={mode} onValueChange={(value) => setMode(value as 'light' | 'dark' | 'system')}>
+					<Select
+						value={mode}
+						onValueChange={(value) =>
+							setMode(value as 'light' | 'dark' | 'system')
+						}
+					>
 						<SelectTrigger>
 							<SelectValue />
 						</SelectTrigger>
@@ -165,19 +214,20 @@ export function ThemePicker() {
 					</Select>
 				</div>
 			</div>
-			
+
 			{/* Theme Info */}
 			{currentTheme && (
 				<Card>
 					<CardHeader>
 						<CardTitle>{currentTheme.name}</CardTitle>
 						<CardDescription>
-							{currentTheme.description} • By {currentTheme.author} • Mode: {resolvedMode}
+							{currentTheme.description} • By{' '}
+							{currentTheme.author} • Mode: {resolvedMode}
 						</CardDescription>
 					</CardHeader>
 				</Card>
 			)}
-			
+
 			{/* Color Display */}
 			<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2">
 				{allColors.map((color) => (

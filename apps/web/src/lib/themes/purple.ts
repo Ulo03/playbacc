@@ -75,4 +75,3 @@ const purpleTheme: Theme = {
 }
 
 export default purpleTheme
-

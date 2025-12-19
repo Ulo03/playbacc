@@ -3,7 +3,7 @@ import type { Theme } from './types'
 const defaultTheme: Theme = {
 	name: 'Default',
 	author: 'playbacc',
-	description: 'Playbacc\'s default theme',
+	description: "Playbacc's default theme",
 	light: {
 		background: 'oklch(1 0 0)',
 		foreground: 'oklch(0.141 0.005 285.823)',
@@ -74,4 +74,4 @@ const defaultTheme: Theme = {
 	},
 }
 
-export default defaultTheme;
+export default defaultTheme

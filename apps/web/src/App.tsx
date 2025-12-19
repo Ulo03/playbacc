@@ -1,4 +1,4 @@
-import { ThemePicker } from "./components/theme-picker"
+import { ThemePicker } from './components/theme-picker'
 
 export function App() {
 	return <ThemePicker />

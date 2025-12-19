@@ -75,4 +75,3 @@ const blueTheme: Theme = {
 }
 
 export default blueTheme
-
