@@ -1,0 +1,41 @@
+import { Context, Next } from "hono";
+import { verifyToken } from "../lib/jwt";
+import { db } from "../db";
+
+export const authenticate = async (ctx: Context, next: Next) => {
+    const authHeader = ctx.req.header('Authorization');
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return ctx.json({ error: 'Missing or invalid authorization header' }, 401);
+    }
+
+    const token = authHeader.split(' ')[1];
+    const payload = await verifyToken(token);
+
+    if (!payload) {
+        return ctx.json({ error: 'Invalid or expired token' }, 401);
+    }
+    
+    try {
+        const account = await db.query.accounts.findFirst({
+            where: (accounts, { eq, and }) =>
+                and(
+                    eq(accounts.provider, 'spotify'),
+                    eq(accounts.external_id, payload.external_id),
+                ),
+                with: {
+                    user: true,
+                },
+        });
+
+        if (!account || !account.user) {
+            return ctx.json({ error: 'Account not found' }, 404);
+        }
+
+        ctx.set('account', account);
+        await next();
+    } catch (error) {
+        console.error('Error verifying token:', error);
+        return ctx.json({ error: 'Authentication failed' }, 500);
+    }
+}
