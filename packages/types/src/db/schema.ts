@@ -94,6 +94,5 @@ export const scrobbles = pgTable('scrobbles', {
     provider: accountProviderEnum('provider').notNull(),
 }, (table) => [
     unique('no_duplicate_scrobbles').on(table.user_id, table.track_id, table.played_at),
+    index('idx_no_duplicate_scrobbles').on(table.user_id, table.track_id, table.played_at),
 ]);
-
-index('idx_no_duplicate_scrobbles').on(scrobbles.user_id, scrobbles.track_id, scrobbles.played_at);
