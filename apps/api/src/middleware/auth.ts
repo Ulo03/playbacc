@@ -23,16 +23,23 @@ export const authenticate = async (ctx: Context, next: Next) => {
                     eq(accounts.provider, 'spotify'),
                     eq(accounts.external_id, payload.external_id),
                 ),
-                with: {
-                    user: true,
-                },
         });
 
-        if (!account || !account.user) {
+        if (!account || !account.user_id) {
             return ctx.json({ error: 'Account not found' }, 404);
         }
 
+        const user = await db.query.users.findFirst({
+            where: (users, { eq }) => eq(users.id, account.user_id),
+        });
+
+        if (!user) {
+            return ctx.json({ error: 'User not found' }, 404);
+        }
+
         ctx.set('account', account);
+        ctx.set('user', user);
+        
         await next();
     } catch (error) {
         console.error('Error verifying token:', error);
