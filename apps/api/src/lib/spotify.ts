@@ -3,7 +3,7 @@ const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET!;
 const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI!;
 
 if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET || !SPOTIFY_REDIRECT_URI) {
-    throw new Error('Mssing required Spotify environment variables.');
+    throw new Error('Missing required Spotify environment variables.');
 }
 
 export interface TokenResponse {

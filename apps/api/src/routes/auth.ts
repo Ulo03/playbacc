@@ -4,7 +4,6 @@ import { db } from "../db";
 import { eq } from "drizzle-orm";
 import { signToken } from "../lib/jwt";
 import { accounts, users } from '@playbacc/types/db/schema';
-import { authenticate } from "../middleware/auth";
 
 const auth = new Hono();
 
@@ -29,7 +28,7 @@ auth.get('/spotify/callback', async (ctx) => {
 
     try {
         const tokenResponse = await exchangeCodeForToken(code);
-        const spotifyUser = await getUserProfile(tokenResponse.access_token)
+        const spotifyUser = await getUserProfile(tokenResponse.access_token);
 
         const existingAccount = await db.query.accounts.findFirst({
             where: (accounts, { eq, and }) =>
