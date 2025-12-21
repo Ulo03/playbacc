@@ -6,14 +6,14 @@ if (!JWT_SECRET) {
     throw new Error('JWT_SECRET is not set');
 }
 
-export interface JWTPayload {
+export interface JWTPayload extends jose.JWTPayload {
     user_id: string;
     external_id: string;
     provider: 'spotify';
 }
 
 export const signToken = async (payload: JWTPayload) => {
-    const jwt = await new jose.SignJWT({ payload })
+    const jwt = await new jose.SignJWT(payload)
         .setProtectedHeader({ alg: 'HS256' })
         .setIssuedAt()
         .setExpirationTime('7d')
@@ -27,6 +27,6 @@ export const verifyToken = async (token: string) => {
         const { payload } = await jose.jwtVerify<JWTPayload>(token, JWT_SECRET);
         return payload;
     } catch (error) {
-        throw new Error('Invalid or expired token');
+        return null;
     }
 }
