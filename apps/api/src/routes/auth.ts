@@ -74,12 +74,28 @@ auth.get('/spotify/callback', async (ctx) => {
             });
         }
 
-        const existingUser = await db.query.users.findFirst({
+        let existingUser = await db.query.users.findFirst({
             where: (users, { eq }) => eq(users.email, spotifyUser.email),
         });
 
         if (!existingUser) {
-            return ctx.json({ error: 'User not found. Please contact an administrator to create your account.' }, 404);
+            const allowSignup = process.env.ALLOW_SIGNUP === 'true';
+            
+            if (!allowSignup) {
+                return ctx.json({ error: 'User not found. Please contact an administrator to create your account.' }, 404);
+            }
+            
+            const [newUser] = await db.insert(users).values({
+                email: spotifyUser.email,
+                username: spotifyUser.display_name || spotifyUser.email.split('@')[0],
+                image_url: spotifyUser.images?.[0]?.url,
+            }).returning();
+            
+            if (!newUser) {
+                return ctx.json({ error: 'Failed to create user' }, 500);
+            }
+            
+            existingUser = newUser;
         }
 
         const [newAccount] = await db.insert(accounts).values({
@@ -96,19 +112,31 @@ auth.get('/spotify/callback', async (ctx) => {
             return ctx.json({ error: 'Failed to create account' }, 500);
         }
 
-        const [updatedUser] = await db.update(users)
-            .set({
-                username: spotifyUser.display_name || spotifyUser.email.split('@')[0],
-                image_url: spotifyUser.images?.[0]?.url,
-            })
-            .where(eq(users.id, newAccount.user_id)).returning();
+        const updateData: { username?: string; image_url?: string } = {};
+        
+        if (!existingUser.username) {
+            updateData.username = spotifyUser.display_name || spotifyUser.email.split('@')[0];
+        }
+        
+        if (!existingUser.image_url) {
+            updateData.image_url = spotifyUser.images?.[0]?.url;
+        }
 
-        if (!updatedUser) {
-            return ctx.json({ error: 'Failed to update user' }, 500);
+        let updatedUser = existingUser;
+        if (Object.keys(updateData).length > 0) {
+            const [updated] = await db.update(users)
+                .set(updateData)
+                .where(eq(users.id, newAccount.user_id)).returning();
+
+            if (!updated) {
+                return ctx.json({ error: 'Failed to update user' }, 500);
+            }
+            
+            updatedUser = updated;
         }
 
         const token = await signToken({
-            user_id: existingUser.id,
+            user_id: updatedUser.id,
             external_id: newAccount.external_id,
             provider: 'spotify',
         });
@@ -116,10 +144,10 @@ auth.get('/spotify/callback', async (ctx) => {
         return ctx.json({
             token,
             user: {
-                id: existingUser.id,
-                email: existingUser.email,
-                username: existingUser.username,
-                image_url: existingUser.image_url,
+                id: updatedUser.id,
+                email: updatedUser.email,
+                username: updatedUser.username,
+                image_url: updatedUser.image_url,
             },
         });
     } catch (error) {
