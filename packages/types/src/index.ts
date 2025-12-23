@@ -9,6 +9,7 @@ export * from './schemas/tracks';
 export * from './schemas/tracks-artists';
 export * from './schemas/tracks-albums';
 export * from './schemas/scrobbles';
+export * from './schemas/imports';
 
 // Export Drizzle database schemas
 export * from './db/enums';

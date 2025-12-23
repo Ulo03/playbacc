@@ -1,5 +1,5 @@
-import { boolean, date, index, integer, pgTable, primaryKey, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
-import { accountProviderEnum, userRoleEnum } from './enums';
+import { boolean, date, index, integer, jsonb, pgTable, primaryKey, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { accountProviderEnum, importStatusEnum, userRoleEnum } from './enums';
 
 // Users Table
 export const users = pgTable('users', {
@@ -7,7 +7,6 @@ export const users = pgTable('users', {
     email: text('email').notNull().unique(),
     username: text('username').unique(),
     image_url: text('image_url'),
-    is_public: boolean('is_public').notNull().default(true),
     role: userRoleEnum('role').notNull().default('user'),
     created_at: timestamp('created_at').notNull().defaultNow(),
 });
@@ -81,6 +80,28 @@ export const track_albums = pgTable('track_albums', {
     primaryKey({ name: 'track_albums_pk', columns: [table.track_id, table.album_id] }),
 ]);
 
+// Imports Table
+export const imports = pgTable('imports', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    user_id: uuid('user_id').notNull().references(() => users.id),
+    filename: text('filename').notNull(),
+    file_hash: text('file_hash').notNull(),
+    file_size: integer('file_size').notNull(),
+    file_path: text('file_path').notNull(),
+    status: importStatusEnum('status').notNull().default('pending'),
+    total_records: integer('total_records'),
+    imported_records: integer('imported_records').default(0),
+    failed_records: integer('failed_records').default(0),
+    error_message: jsonb('error_message'),
+    started_at: timestamp('started_at'),
+    completed_at: timestamp('completed_at'),
+    created_at: timestamp('created_at').notNull().defaultNow(),
+}, (table) => [
+    index('idx_imports_user').on(table.user_id),
+    unique('idx_imports_file_hash').on(table.file_hash),
+    index('idx_imports_status').on(table.status),
+]);
+
 // Scrobbles Table
 export const scrobbles = pgTable('scrobbles', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -90,10 +111,15 @@ export const scrobbles = pgTable('scrobbles', {
     played_at: timestamp('played_at').notNull(),
     played_duration_ms: integer('played_duration_ms').notNull().default(0),
     skipped: boolean('skipped').notNull().default(false),
-    is_imported: boolean('is_imported').notNull().default(false),
+    import_id: uuid('import_id').references(() => imports.id),
     provider: accountProviderEnum('provider').notNull(),
 }, (table) => [
     unique('no_duplicate_scrobbles').on(table.user_id, table.track_id, table.played_at),
+<<<<<<< Updated upstream
 ]);
 
 index('idx_no_duplicate_scrobbles').on(scrobbles.user_id, scrobbles.track_id, scrobbles.played_at);
+=======
+    index('idx_scrobbles_import').on(table.import_id),
+]);
+>>>>>>> Stashed changes
