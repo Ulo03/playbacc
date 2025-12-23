@@ -115,11 +115,6 @@ export const scrobbles = pgTable('scrobbles', {
     provider: accountProviderEnum('provider').notNull(),
 }, (table) => [
     unique('no_duplicate_scrobbles').on(table.user_id, table.track_id, table.played_at),
-<<<<<<< Updated upstream
-]);
-
-index('idx_no_duplicate_scrobbles').on(scrobbles.user_id, scrobbles.track_id, scrobbles.played_at);
-=======
     index('idx_scrobbles_import').on(table.import_id),
+    index('idx_no_duplicate_scrobbles').on(table.user_id, table.track_id, table.played_at),
 ]);
->>>>>>> Stashed changes
