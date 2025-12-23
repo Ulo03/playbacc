@@ -7,19 +7,50 @@ Enum "user_role" {
     "user"
 }
 
+Enum "import_status" {
+    "pending"
+    "processing"
+    "completed"
+    "failed"
+}
+
+Table "public"."imports" {
+  "id" uuid [pk, not null]
+  "user_id" uuid [not null, ref: < "public"."users"."id"]
+  "filename" text [not null]
+  "file_hash" text [not null]
+  "file_size" integer [not null]
+  "file_path" text [not null] // Path relative to uploads directory
+  "status" import_status [not null, default: "pending"]
+  "total_records" integer
+  "imported_records" integer [default: 0]
+  "failed_records" integer [default: 0]
+  "error_message" jsonb
+  "started_at" timestamptz
+  "completed_at" timestamptz
+  "created_at" timestamptz [not null]
+
+  Indexes {
+    (user_id) [name: "idx_imports_user"]
+    (file_hash) [unique, name: "idx_imports_file_hash"]
+    (status) [name: "idx_imports_status"]
+  }
+}
+
 Table "public"."scrobbles" {
   "id" uuid [pk, not null]
   "user_id" uuid [not null, ref: < "public"."users"."id"]
   "track_id" uuid [not null, ref: < "public"."tracks"."id"]
   "album_id" uuid [ref: < "public"."albums"."id"]
   "played_at" timestamptz [not null]
-  "played_duration_ms" integer [not null]
+  "played_duration_ms" integer [not null, default: 0]
   "skipped" boolean [not null, default: false]
-  "is_imported" boolean [not null, default: false]
+  "import_id" uuid [ref: < "public"."imports"."id"]
   "provider" account_provider [not null]
 
   Indexes {
     (user_id, track_id, played_at) [unique, name: "no_duplicate_scrobbles"]
+    (import_id) [name: "idx_scrobbles_import"]
   }
 }
 
@@ -83,7 +114,7 @@ Table "public"."accounts" {
   "id" uuid [pk, not null]
   "user_id" uuid [not null, ref: < "public"."users"."id"]
   "provider" account_provider [not null]
-  "external_id" text [not null]
+  "external_id" text [unique, not null]
   "access_token" text
   "refresh_token" text
   "expires_in" integer
