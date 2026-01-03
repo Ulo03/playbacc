@@ -10,7 +10,7 @@
  *    - Pause-aware duration tracking
  *
  * 2. **Slow loop (recently-played fallback)**: Polls Spotify's recently-played endpoint
- *    at a configurable interval (~60s default) as a safety net to catch any plays
+ *    at a configurable interval (~5 min default) as a safety net to catch any plays
  *    that may have been missed.
  *
  * Both loops share a MusicBrainz cache for efficient metadata resolution.
@@ -31,9 +31,9 @@ import type { SpotifyAccount } from '../lib/spotify'
  * Worker configuration
  */
 const WORKER_CONFIG = {
-	/** Polling interval for recently-played fallback (ms) */
+	/** Polling interval for recently-played fallback (ms) - default 5 minutes */
 	recentlyPlayedIntervalMs: parseInt(
-		process.env.SCROBBLE_POLL_INTERVAL_MS || '60000',
+		process.env.SCROBBLE_FALLBACK_INTERVAL_MS || '300000',
 		10
 	),
 	/** Polling interval for currently-playing (ms) - from playback config */
