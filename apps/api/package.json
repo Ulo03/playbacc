@@ -8,6 +8,7 @@
 		"db:migrate": "bun run db:ensure && drizzle-kit migrate",
 		"db:push": "bun run db:ensure && drizzle-kit push",
 		"db:studio": "bun run db:ensure && drizzle-kit studio",
+		"dev:all": "concurrently \"bun run dev\" \"bun run worker:scrobble\" \"bun run db:studio\" --names \"API,WORKER,STUDIO\" --prefix-colors \"blue,green,yellow\"",
 		"format": "prettier --write \"**/*.{ts,tsx,js,jsx,json}\"",
 		"format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json}\""
 	},
@@ -22,6 +23,7 @@
 	"devDependencies": {
 		"@types/bun": "latest",
 		"@types/node": "^20.0.0",
+		"concurrently": "^9.2.1",
 		"drizzle-kit": "^0.31.8"
 	}
 }
