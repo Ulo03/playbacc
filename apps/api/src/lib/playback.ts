@@ -44,11 +44,22 @@ export const PLAYBACK_CONFIG = {
 	/** Jitter factor (±10% of poll interval) */
 	jitterFactor: 0.1,
 	/**
-	 * Tolerance for detecting progress wrap (loop/repeat).
-	 * If progress drops by more than this amount, we consider it a new play.
-	 * Set slightly higher than poll interval to avoid false positives.
+	 * Minimum tolerance for detecting progress wrap (loop/repeat) in milliseconds.
+	 * Even with percentage-based detection, we need a minimum to avoid false positives
+	 * from small timing variations. Set slightly higher than poll interval.
 	 */
-	wrapToleranceMs: 15000,
+	wrapMinToleranceMs: 15000,
+	/**
+	 * Percentage of track duration that progress must drop by to count as a wrap.
+	 * If current progress is earlier than (last_progress - track_duration * threshold),
+	 * we consider it a new play (loop/repeat).
+	 * Default: 35% - so if you're at 80% and suddenly at 40%, that's only a 40% drop,
+	 * not enough. But if you're at 80% and suddenly at 10%, that's a 70% drop = wrap.
+	 */
+	wrapThresholdPercent: parseInt(
+		process.env.SCROBBLE_WRAP_THRESHOLD_PERCENT || '35',
+		10
+	),
 	/**
 	 * Maximum delta to accumulate in a single poll.
 	 * Prevents huge jumps from glitches or seeks.
@@ -369,10 +380,16 @@ export async function processCurrentlyPlaying(
 			if (session.is_playing) {
 				// Check for wrap (loop/repeat detection)
 				// Progress dropped significantly = track restarted
-				if (delta < -PLAYBACK_CONFIG.wrapToleranceMs) {
+				// Use percentage of track duration with a minimum tolerance
+				const wrapThresholdMs = Math.max(
+					PLAYBACK_CONFIG.wrapMinToleranceMs,
+					(track.duration_ms * PLAYBACK_CONFIG.wrapThresholdPercent) /
+						100
+				)
+				if (delta < -wrapThresholdMs) {
 					// Wrap detected! Finalize current play, start new session
 					console.log(
-						`[Playback] Wrap detected for ${track.name}: progress ${session.last_progress_ms}ms -> ${progressMs}ms`
+						`[Playback] Wrap detected for ${track.name}: progress ${session.last_progress_ms}ms -> ${progressMs}ms (threshold: ${wrapThresholdMs}ms)`
 					)
 
 					// Finalize the completed play
