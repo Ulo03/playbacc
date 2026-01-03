@@ -72,7 +72,6 @@ export interface PlaybackSession {
 	user_id: string
 	provider: 'spotify'
 	track_uri: string
-	track_spotify_id: string | null
 	started_at: Date
 	last_seen_at: Date
 	last_progress_ms: number
@@ -82,6 +81,15 @@ export interface PlaybackSession {
 	track_metadata: SpotifyTrackInput | null
 	scrobbled: boolean
 	updated_at: Date
+}
+
+/**
+ * Extracts the track ID from a Spotify URI.
+ * @example extractTrackIdFromUri('spotify:track:4iV5W9uYEdYUVa79Axb7Rh') => '4iV5W9uYEdYUVa79Axb7Rh'
+ */
+export function extractTrackIdFromUri(uri: string): string | null {
+	const match = uri.match(/^spotify:track:([a-zA-Z0-9]+)$/)
+	return match ? match[1] : null
 }
 
 /**
@@ -115,7 +123,6 @@ export async function upsertPlaybackSession(
 			target: [playback_sessions.user_id, playback_sessions.provider],
 			set: {
 				track_uri: data.track_uri,
-				track_spotify_id: data.track_spotify_id,
 				started_at: data.started_at,
 				last_seen_at: data.last_seen_at,
 				last_progress_ms: data.last_progress_ms,
@@ -340,7 +347,6 @@ export async function processCurrentlyPlaying(
 				user_id: account.user_id,
 				provider: 'spotify',
 				track_uri: trackUri,
-				track_spotify_id: track.id,
 				started_at: now,
 				last_seen_at: now,
 				last_progress_ms: progressMs,
@@ -381,7 +387,6 @@ export async function processCurrentlyPlaying(
 						user_id: account.user_id,
 						provider: 'spotify',
 						track_uri: trackUri,
-						track_spotify_id: track.id,
 						started_at: now,
 						last_seen_at: now,
 						last_progress_ms: progressMs,
@@ -410,7 +415,6 @@ export async function processCurrentlyPlaying(
 				user_id: account.user_id,
 				provider: 'spotify',
 				track_uri: trackUri,
-				track_spotify_id: track.id,
 				started_at: session.started_at,
 				last_seen_at: now,
 				last_progress_ms: progressMs,
@@ -439,7 +443,6 @@ export async function processCurrentlyPlaying(
 			user_id: account.user_id,
 			provider: 'spotify',
 			track_uri: trackUri,
-			track_spotify_id: track.id,
 			started_at: now,
 			last_seen_at: now,
 			last_progress_ms: progressMs,

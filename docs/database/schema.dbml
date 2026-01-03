@@ -85,10 +85,18 @@ Table "public"."artists" {
 }
 
 Table "public"."artists_groups" {
+  "id" uuid [pk, not null] // Surrogate key to support multiple membership periods
   "member_id" uuid [not null, ref: < "public"."artists"."id"]
   "group_id" uuid [not null, ref: < "public"."artists"."id"]
+  "begin_date" date // Normalized start date (from MusicBrainz)
+  "end_date" date // Normalized end date, null if still active
+  "begin_raw" text // Raw MB date string (YYYY, YYYY-MM, or YYYY-MM-DD)
+  "end_raw" text // Raw MB date string
+  "ended" boolean [not null, default: false] // Whether membership has ended
   Indexes {
-    (member_id, group_id) [pk, name: "artists_groups_pk"]
+    (member_id) [name: "idx_artists_groups_member"]
+    (group_id) [name: "idx_artists_groups_group"]
+    (member_id, group_id, begin_raw, end_raw) [unique, name: "idx_artists_groups_unique_period"]
   }
 }
 

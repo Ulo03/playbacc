@@ -45,22 +45,38 @@ export const artists = pgTable('artists', {
 	image_url: text('image_url'),
 })
 
-// Artists Groups Table
+// Artists Groups Table - tracks group memberships with time periods
+// Supports multiple membership stints (leave/rejoin) per member+group pair
 export const artists_groups = pgTable(
 	'artists_groups',
 	{
+		id: uuid('id').primaryKey().defaultRandom(),
 		member_id: uuid('member_id')
 			.notNull()
 			.references(() => artists.id),
 		group_id: uuid('group_id')
 			.notNull()
 			.references(() => artists.id),
+		/** When membership started (normalized date from MusicBrainz) */
+		begin_date: date('begin_date'),
+		/** When membership ended (normalized date), null if still active */
+		end_date: date('end_date'),
+		/** Raw begin date string from MusicBrainz (YYYY, YYYY-MM, or YYYY-MM-DD) */
+		begin_raw: text('begin_raw'),
+		/** Raw end date string from MusicBrainz */
+		end_raw: text('end_raw'),
+		/** Whether the membership has ended */
+		ended: boolean('ended').notNull().default(false),
 	},
 	(table) => [
-		primaryKey({
-			name: 'artists_groups_pk',
-			columns: [table.member_id, table.group_id],
-		}),
+		index('idx_artists_groups_member').on(table.member_id),
+		index('idx_artists_groups_group').on(table.group_id),
+		unique('idx_artists_groups_unique_period').on(
+			table.member_id,
+			table.group_id,
+			table.begin_raw,
+			table.end_raw
+		),
 	]
 )
 
@@ -218,10 +234,8 @@ export const playback_sessions = pgTable(
 			.notNull()
 			.references(() => users.id),
 		provider: accountProviderEnum('provider').notNull(),
-		/** Spotify track URI (e.g. spotify:track:...) */
+		/** Track URI (e.g. spotify:track:...) - use extractTrackIdFromUri() to get the ID */
 		track_uri: text('track_uri').notNull(),
-		/** Spotify track ID (the part after spotify:track:) */
-		track_spotify_id: text('track_spotify_id'),
 		/** When this specific play instance started */
 		started_at: timestamp('started_at').notNull(),
 		/** Last time we polled and saw this track */

@@ -12,11 +12,19 @@
 
 import type {
 	ArtistSearchResponse,
+	ArtistSearchResultResponse,
 	IsrcLookupResponse,
+	MusicBrainzArtistDetails,
+	MusicBrainzArtistSearchResult,
 	MusicBrainzRecordingDetails,
+	MusicBrainzReleaseDetails,
+	MusicBrainzReleaseSearchResult,
 	RecordingSearchResponse,
 	ReleaseSearchResponse,
+	ReleaseSearchResultResponse,
 } from '@playbacc/types/api/musicbrainz'
+
+export type { MusicBrainzArtistDetails } from '@playbacc/types/api/musicbrainz'
 
 const MUSICBRAINZ_API_BASE = 'https://musicbrainz.org/ws/2'
 
@@ -394,6 +402,219 @@ export async function lookupReleaseByNameAndArtist(
 }
 
 /**
+ * Search for artists by query string.
+ * Returns multiple candidates for user selection in the UI.
+ *
+ * @param query - Search query (artist name)
+ * @param limit - Maximum number of results (default 10, max 100)
+ * @returns Array of artist search results
+ */
+export async function searchArtists(
+	query: string,
+	limit: number = 10
+): Promise<MusicBrainzArtistSearchResult[]> {
+	try {
+		const escapeQuery = (str: string) =>
+			str.replace(/[+\-&|!(){}[\]^"~*?:\\/]/g, '\\$&')
+
+		const escapedQuery = encodeURIComponent(
+			`artist:"${escapeQuery(query)}"`
+		)
+		const url = `${MUSICBRAINZ_API_BASE}/artist/?query=${escapedQuery}&fmt=json&limit=${Math.min(limit, 100)}`
+		const response = await rateLimitedFetch(url)
+
+		if (!response.ok) {
+			throw new Error(`MusicBrainz API error: ${response.status}`)
+		}
+
+		const data = (await response.json()) as ArtistSearchResultResponse
+
+		return data.artists ?? []
+	} catch (error) {
+		console.error('[MusicBrainz] Error searching for artists:', error)
+		return []
+	}
+}
+
+/**
+ * Search for releases by query string.
+ * Returns multiple candidates for user selection in the UI.
+ *
+ * @param query - Search query (release title)
+ * @param artistName - Optional artist name to narrow results
+ * @param limit - Maximum number of results (default 10, max 100)
+ * @returns Array of release search results
+ */
+export async function searchReleases(
+	query: string,
+	artistName?: string,
+	limit: number = 10
+): Promise<MusicBrainzReleaseSearchResult[]> {
+	try {
+		const escapeQuery = (str: string) =>
+			str.replace(/[+\-&|!(){}[\]^"~*?:\\/]/g, '\\$&')
+
+		let searchQuery = `release:"${escapeQuery(query)}"`
+		if (artistName) {
+			searchQuery += ` AND artist:"${escapeQuery(artistName)}"`
+		}
+
+		const url = `${MUSICBRAINZ_API_BASE}/release/?query=${encodeURIComponent(searchQuery)}&fmt=json&limit=${Math.min(limit, 100)}`
+		const response = await rateLimitedFetch(url)
+
+		if (!response.ok) {
+			throw new Error(`MusicBrainz API error: ${response.status}`)
+		}
+
+		const data = (await response.json()) as ReleaseSearchResultResponse
+
+		return data.releases ?? []
+	} catch (error) {
+		console.error('[MusicBrainz] Error searching for releases:', error)
+		return []
+	}
+}
+
+/**
+ * Get full release details by MBID.
+ *
+ * @param releaseMbid - The MusicBrainz release ID
+ * @returns Full release details or null if not found
+ */
+export async function getReleaseDetails(
+	releaseMbid: string
+): Promise<MusicBrainzReleaseDetails | null> {
+	try {
+		const url = `${MUSICBRAINZ_API_BASE}/release/${encodeURIComponent(releaseMbid)}?inc=artist-credits+labels+release-groups&fmt=json`
+		const response = await rateLimitedFetch(url)
+
+		if (!response.ok) {
+			if (response.status === 404) {
+				return null
+			}
+			throw new Error(`MusicBrainz API error: ${response.status}`)
+		}
+
+		return (await response.json()) as MusicBrainzReleaseDetails
+	} catch (error) {
+		console.error('[MusicBrainz] Error getting release details:', error)
+		return null
+	}
+}
+
+/**
+ * Get full artist details by MBID, including relationships.
+ * Useful for fetching group membership information.
+ *
+ * @param artistMbid - The MusicBrainz artist ID
+ * @returns Full artist details with relationships or null if not found
+ */
+export async function getArtistDetails(
+	artistMbid: string
+): Promise<MusicBrainzArtistDetails | null> {
+	try {
+		const url = `${MUSICBRAINZ_API_BASE}/artist/${encodeURIComponent(artistMbid)}?inc=artist-rels&fmt=json`
+		const response = await rateLimitedFetch(url)
+
+		if (!response.ok) {
+			if (response.status === 404) {
+				return null
+			}
+			throw new Error(`MusicBrainz API error: ${response.status}`)
+		}
+
+		return (await response.json()) as MusicBrainzArtistDetails
+	} catch (error) {
+		console.error('[MusicBrainz] Error getting artist details:', error)
+		return null
+	}
+}
+
+/** Parsed group membership from MusicBrainz relationships */
+export interface GroupMembership {
+	/** MBID of the group */
+	groupMbid: string
+	/** Name of the group */
+	groupName: string
+	/** Start date of membership (YYYY, YYYY-MM, or YYYY-MM-DD) */
+	beginDate?: string
+	/** End date of membership */
+	endDate?: string
+	/** Whether the membership has ended */
+	ended: boolean
+}
+
+/** Parsed member info from MusicBrainz relationships */
+export interface GroupMember {
+	/** MBID of the member */
+	memberMbid: string
+	/** Name of the member */
+	memberName: string
+	/** Start date of membership (YYYY, YYYY-MM, or YYYY-MM-DD) */
+	beginDate?: string
+	/** End date of membership */
+	endDate?: string
+	/** Whether the membership has ended */
+	ended: boolean
+}
+
+/**
+ * Extracts group memberships from artist relationships.
+ * Use this to find which groups an artist is/was a member of.
+ *
+ * @param artistDetails - Artist details with relationships loaded
+ * @returns Array of group memberships
+ */
+export function extractGroupMemberships(
+	artistDetails: MusicBrainzArtistDetails
+): GroupMembership[] {
+	if (!artistDetails.relations) {
+		return []
+	}
+
+	return artistDetails.relations
+		.filter(
+			(rel) =>
+				rel.type === 'member of band' && rel.direction === 'forward'
+		)
+		.map((rel) => ({
+			groupMbid: rel.artist.id,
+			groupName: rel.artist.name ?? 'Unknown',
+			beginDate: rel.begin,
+			endDate: rel.end,
+			ended: rel.ended ?? false,
+		}))
+}
+
+/**
+ * Extracts members from a group's relationships.
+ * Use this to find who is/was a member of a group.
+ *
+ * @param groupDetails - Group artist details with relationships loaded
+ * @returns Array of group members
+ */
+export function extractGroupMembers(
+	groupDetails: MusicBrainzArtistDetails
+): GroupMember[] {
+	if (!groupDetails.relations) {
+		return []
+	}
+
+	return groupDetails.relations
+		.filter(
+			(rel) =>
+				rel.type === 'member of band' && rel.direction === 'backward'
+		)
+		.map((rel) => ({
+			memberMbid: rel.artist.id,
+			memberName: rel.artist.name ?? 'Unknown',
+			beginDate: rel.begin,
+			endDate: rel.end,
+			ended: rel.ended ?? false,
+		}))
+}
+
+/**
  * Cover Art Archive API response
  * @see https://wiki.musicbrainz.org/Cover_Art_Archive/API
  */
@@ -500,6 +721,16 @@ export class MusicBrainzCache {
 		MusicBrainzRecordingDetails | null
 	>()
 	private releaseCoverUrls = new Map<string, string | null>()
+	private artistDetails = new Map<string, MusicBrainzArtistDetails | null>()
+	private releaseDetails = new Map<string, MusicBrainzReleaseDetails | null>()
+	private artistSearchResults = new Map<
+		string,
+		MusicBrainzArtistSearchResult[]
+	>()
+	private releaseSearchResults = new Map<
+		string,
+		MusicBrainzReleaseSearchResult[]
+	>()
 
 	/**
 	 * Creates a cache key for recording search
@@ -510,6 +741,24 @@ export class MusicBrainzCache {
 		album?: string
 	): string {
 		return `${title.toLowerCase()}|${artist.toLowerCase()}|${album?.toLowerCase() ?? ''}`
+	}
+
+	/**
+	 * Creates a cache key for artist search
+	 */
+	private makeArtistSearchKey(query: string, limit: number): string {
+		return `${query.toLowerCase()}|${limit}`
+	}
+
+	/**
+	 * Creates a cache key for release search
+	 */
+	private makeReleaseSearchKey(
+		query: string,
+		artistName: string | undefined,
+		limit: number
+	): string {
+		return `${query.toLowerCase()}|${artistName?.toLowerCase() ?? ''}|${limit}`
 	}
 
 	/**
@@ -574,6 +823,71 @@ export class MusicBrainzCache {
 	}
 
 	/**
+	 * Get artist details with relationships, with caching
+	 */
+	async getArtistDetailsCached(
+		artistMbid: string
+	): Promise<MusicBrainzArtistDetails | null> {
+		if (this.artistDetails.has(artistMbid)) {
+			return this.artistDetails.get(artistMbid)!
+		}
+
+		const details = await getArtistDetails(artistMbid)
+		this.artistDetails.set(artistMbid, details)
+		return details
+	}
+
+	/**
+	 * Get release details with caching
+	 */
+	async getReleaseDetailsCached(
+		releaseMbid: string
+	): Promise<MusicBrainzReleaseDetails | null> {
+		if (this.releaseDetails.has(releaseMbid)) {
+			return this.releaseDetails.get(releaseMbid)!
+		}
+
+		const details = await getReleaseDetails(releaseMbid)
+		this.releaseDetails.set(releaseMbid, details)
+		return details
+	}
+
+	/**
+	 * Search for artists with caching
+	 */
+	async searchArtistsCached(
+		query: string,
+		limit: number = 10
+	): Promise<MusicBrainzArtistSearchResult[]> {
+		const key = this.makeArtistSearchKey(query, limit)
+		if (this.artistSearchResults.has(key)) {
+			return this.artistSearchResults.get(key)!
+		}
+
+		const results = await searchArtists(query, limit)
+		this.artistSearchResults.set(key, results)
+		return results
+	}
+
+	/**
+	 * Search for releases with caching
+	 */
+	async searchReleasesCached(
+		query: string,
+		artistName?: string,
+		limit: number = 10
+	): Promise<MusicBrainzReleaseSearchResult[]> {
+		const key = this.makeReleaseSearchKey(query, artistName, limit)
+		if (this.releaseSearchResults.has(key)) {
+			return this.releaseSearchResults.get(key)!
+		}
+
+		const results = await searchReleases(query, artistName, limit)
+		this.releaseSearchResults.set(key, results)
+		return results
+	}
+
+	/**
 	 * Clear all cached data
 	 */
 	clear(): void {
@@ -581,6 +895,10 @@ export class MusicBrainzCache {
 		this.searchKeyToMbid.clear()
 		this.mbidToDetails.clear()
 		this.releaseCoverUrls.clear()
+		this.artistDetails.clear()
+		this.releaseDetails.clear()
+		this.artistSearchResults.clear()
+		this.releaseSearchResults.clear()
 	}
 
 	/**
@@ -591,12 +909,20 @@ export class MusicBrainzCache {
 		search: number
 		details: number
 		covers: number
+		artists: number
+		releases: number
+		artistSearches: number
+		releaseSearches: number
 	} {
 		return {
 			isrc: this.isrcToMbid.size,
 			search: this.searchKeyToMbid.size,
 			details: this.mbidToDetails.size,
 			covers: this.releaseCoverUrls.size,
+			artists: this.artistDetails.size,
+			releases: this.releaseDetails.size,
+			artistSearches: this.artistSearchResults.size,
+			releaseSearches: this.releaseSearchResults.size,
 		}
 	}
 }

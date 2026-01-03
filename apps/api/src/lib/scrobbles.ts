@@ -31,6 +31,7 @@ import {
 	type SpotifyTrack,
 } from './spotify'
 import { MusicBrainzCache } from './musicbrainz'
+import { syncArtistRelationshipsByMbid } from './sync'
 import type { MusicBrainzRecordingDetails } from '@playbacc/types/api/musicbrainz'
 
 /**
@@ -683,7 +684,36 @@ export async function resolveTrackMetadataFromSpotify(
 }
 
 /**
- * Upserts an artist into the database
+ * Triggers auto-sync for an artist's MusicBrainz relationships.
+ * Runs asynchronously (fire-and-forget) to not block the main flow.
+ *
+ * @param mbid - MusicBrainz artist ID
+ */
+function triggerAutoSync(mbid: string): void {
+	// Fire-and-forget: don't await, just log errors
+	syncArtistRelationshipsByMbid(mbid)
+		.then((result) => {
+			if (result.errors.length > 0) {
+				console.warn(
+					`[AutoSync] Completed with errors for ${mbid}:`,
+					result.errors
+				)
+			} else {
+				console.log(
+					`[AutoSync] Synced ${mbid}: type=${result.artistType}, memberships=${result.membershipsInserted}/${result.membershipsProcessed}`
+				)
+			}
+		})
+		.catch((error) => {
+			console.error(`[AutoSync] Failed for ${mbid}:`, error)
+		})
+}
+
+/**
+ * Upserts an artist into the database.
+ * Triggers auto-sync of MusicBrainz relationships when:
+ * - A new artist is created with an MBID
+ * - An existing artist (by name) gets an MBID attached for the first time
  *
  * @param name - Artist name
  * @param mbid - MusicBrainz artist ID (optional)
@@ -714,6 +744,9 @@ async function upsertArtist(
 				.update(artists)
 				.set({ mbid })
 				.where(eq(artists.id, existingByName.id))
+
+			// Trigger auto-sync for newly attached MBID
+			triggerAutoSync(mbid)
 		}
 		return existingByName.id
 	}
@@ -723,6 +756,11 @@ async function upsertArtist(
 		.insert(artists)
 		.values({ name, mbid })
 		.returning()
+
+	// Trigger auto-sync for new artist with MBID
+	if (mbid) {
+		triggerAutoSync(mbid)
+	}
 
 	return newArtist.id
 }
