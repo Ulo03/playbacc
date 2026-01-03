@@ -54,6 +54,15 @@ export const PLAYBACK_CONFIG = {
 	 * Prevents huge jumps from glitches or seeks.
 	 */
 	maxDeltaMs: 30000,
+	/**
+	 * How long a session can be idle (paused/nothing playing) before being finalized.
+	 * This allows pause/resume without losing progress, but eventually cleans up
+	 * abandoned sessions. Default: 30 minutes.
+	 */
+	staleSessionMs: parseInt(
+		process.env.SCROBBLE_STALE_SESSION_MS || '1800000',
+		10
+	),
 }
 
 /**
@@ -71,6 +80,7 @@ export interface PlaybackSession {
 	is_playing: boolean
 	track_duration_ms: number | null
 	track_metadata: SpotifyTrackInput | null
+	scrobbled: boolean
 	updated_at: Date
 }
 
@@ -113,6 +123,7 @@ export async function upsertPlaybackSession(
 				is_playing: data.is_playing,
 				track_duration_ms: data.track_duration_ms,
 				track_metadata: data.track_metadata,
+				scrobbled: data.scrobbled,
 				updated_at: new Date(),
 			},
 		})
@@ -137,6 +148,9 @@ export async function clearPlaybackSession(userId: string): Promise<void> {
  * Uses stored track_metadata from the session for reliable finalization
  * even when the currently playing track has changed.
  *
+ * Note: This does NOT clear or modify the session. The caller is responsible
+ * for updating the session's `scrobbled` flag or clearing it as needed.
+ *
  * @param userId - User database ID
  * @param session - The session to finalize (must have track_metadata)
  * @param mbCache - MusicBrainz cache for metadata resolution
@@ -147,7 +161,12 @@ export async function finalizeSession(
 	session: PlaybackSession,
 	mbCache: MusicBrainzCache
 ): Promise<boolean> {
-	// Check if we have the required track metadata first
+	// Check if already scrobbled (prevents double-scrobble on pause/resume)
+	if (session.scrobbled) {
+		return false
+	}
+
+	// Check if we have the required track metadata
 	if (!session.track_metadata) {
 		console.warn(
 			`[Playback] Cannot finalize session without track metadata`
@@ -171,7 +190,7 @@ export async function finalizeSession(
 	}
 
 	try {
-		// Check if we already have this scrobble (dedupe by user_id, track, started_at)
+		// Check if we already have this scrobble in DB (dedupe by user_id, track, started_at)
 		// We use started_at as played_at for stable identity
 		const existingScrobble = await db.query.scrobbles.findFirst({
 			where: (s, { eq, and, between }) =>
@@ -221,8 +240,23 @@ export async function finalizeSession(
 }
 
 /**
+ * Checks if a session is stale (idle for too long).
+ * A stale session should be finalized and cleared.
+ */
+function isSessionStale(session: PlaybackSession, now: Date): boolean {
+	const idleMs = now.getTime() - session.last_seen_at.getTime()
+	return idleMs > PLAYBACK_CONFIG.staleSessionMs
+}
+
+/**
  * Processes a single poll of the currently-playing endpoint for an account.
  * Handles session creation, updates, wrap detection, and finalization.
+ *
+ * Pause handling:
+ * - When paused, session is kept alive (not finalized immediately)
+ * - Progress accumulation only happens while is_playing=true
+ * - Session is only finalized when track changes or session becomes stale
+ * - `scrobbled` flag prevents double-scrobbling on pause/resume
  *
  * @param account - Spotify account to process
  * @param mbCache - MusicBrainz cache for metadata resolution
@@ -266,16 +300,20 @@ export async function processCurrentlyPlaying(
 		// Load existing session
 		const session = await getPlaybackSession(account.user_id)
 
-		// Case A: Nothing is playing
+		// Case A: Nothing is playing (or paused with no track info)
 		if (!currentlyPlaying || !currentlyPlaying.item) {
 			if (session) {
-				// Finalize the existing session using stored track_metadata
-				result.scrobbled = await finalizeSession(
-					account.user_id,
-					session,
-					mbCache
-				)
-				await clearPlaybackSession(account.user_id)
+				// Check if session is stale - if so, finalize and clear
+				if (isSessionStale(session, now)) {
+					result.scrobbled = await finalizeSession(
+						account.user_id,
+						session,
+						mbCache
+					)
+					await clearPlaybackSession(account.user_id)
+				}
+				// Otherwise, keep the session alive (user might resume)
+				// Don't update last_seen_at so staleness check works
 			}
 			return result
 		}
@@ -310,17 +348,18 @@ export async function processCurrentlyPlaying(
 				is_playing: isPlaying,
 				track_duration_ms: track.duration_ms,
 				track_metadata: trackMetadata,
+				scrobbled: false,
 			})
 			result.sessionUpdated = true
 			return result
 		}
 
-		// Case C: Same track
+		// Case C: Same track - continue session
 		if (session.track_uri === trackUri) {
 			let newAccumulated = session.accumulated_ms
 			const delta = progressMs - session.last_progress_ms
 
-			// Only accumulate time if playing
+			// Only accumulate time if was playing in previous poll
 			if (session.is_playing) {
 				// Check for wrap (loop/repeat detection)
 				// Progress dropped significantly = track restarted
@@ -330,14 +369,14 @@ export async function processCurrentlyPlaying(
 						`[Playback] Wrap detected for ${track.name}: progress ${session.last_progress_ms}ms -> ${progressMs}ms`
 					)
 
-					// Finalize the completed play using stored track_metadata
+					// Finalize the completed play
 					result.scrobbled = await finalizeSession(
 						account.user_id,
 						session,
 						mbCache
 					)
 
-					// Start new session
+					// Start fresh session for the new loop
 					await upsertPlaybackSession(account.user_id, {
 						user_id: account.user_id,
 						provider: 'spotify',
@@ -350,25 +389,23 @@ export async function processCurrentlyPlaying(
 						is_playing: isPlaying,
 						track_duration_ms: track.duration_ms,
 						track_metadata: trackMetadata,
+						scrobbled: false,
 					})
 					result.sessionUpdated = true
 					return result
 				}
 
 				// Normal progress - accumulate time
-				// Handle seeks: if delta is negative (but not wrap) or very large, clamp it
 				if (delta > 0 && delta <= PLAYBACK_CONFIG.maxDeltaMs) {
 					newAccumulated += delta
-				} else if (delta < 0) {
-					// Small backward seek - don't add negative time, just update position
-					// Don't change accumulated
 				} else if (delta > PLAYBACK_CONFIG.maxDeltaMs) {
-					// Large forward seek - add clamped amount (likely skip ahead)
+					// Large forward seek - add clamped amount
 					newAccumulated += PLAYBACK_CONFIG.maxDeltaMs
 				}
+				// Negative delta (small backward seek) - don't add, just update position
 			}
 
-			// Update session (keep existing track_metadata)
+			// Update session
 			await upsertPlaybackSession(account.user_id, {
 				user_id: account.user_id,
 				provider: 'spotify',
@@ -381,18 +418,21 @@ export async function processCurrentlyPlaying(
 				is_playing: isPlaying,
 				track_duration_ms: track.duration_ms,
 				track_metadata: session.track_metadata, // Preserve original metadata
+				scrobbled: session.scrobbled,
 			})
 			result.sessionUpdated = true
 			return result
 		}
 
-		// Case D: Track changed
-		// Finalize old session using its stored track_metadata, start new one
-		result.scrobbled = await finalizeSession(
-			account.user_id,
-			session,
-			mbCache
-		)
+		// Case D: Track changed - finalize old, start new
+		// Try to scrobble the old session if not already scrobbled
+		if (!session.scrobbled) {
+			result.scrobbled = await finalizeSession(
+				account.user_id,
+				session,
+				mbCache
+			)
+		}
 
 		// Start new session for new track
 		await upsertPlaybackSession(account.user_id, {
@@ -407,6 +447,7 @@ export async function processCurrentlyPlaying(
 			is_playing: isPlaying,
 			track_duration_ms: track.duration_ms,
 			track_metadata: trackMetadata,
+			scrobbled: false,
 		})
 		result.sessionUpdated = true
 		return result

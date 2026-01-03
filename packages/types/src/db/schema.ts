@@ -236,6 +236,8 @@ export const playback_sessions = pgTable(
 		track_duration_ms: integer('track_duration_ms'),
 		/** Spotify track metadata snapshot (for finalization when track changes) */
 		track_metadata: jsonb('track_metadata'),
+		/** Whether this session has already been scrobbled (prevents double-scrobble on pause/resume) */
+		scrobbled: boolean('scrobbled').notNull().default(false),
 		updated_at: timestamp('updated_at').notNull().defaultNow(),
 	},
 	(table) => [
