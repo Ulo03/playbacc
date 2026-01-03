@@ -11,7 +11,13 @@ import {
 	unique,
 	uuid,
 } from 'drizzle-orm/pg-core'
-import { accountProviderEnum, importStatusEnum, userRoleEnum } from './enums'
+import {
+	accountProviderEnum,
+	artistTypeEnum,
+	genderEnum,
+	importStatusEnum,
+	userRoleEnum,
+} from './enums'
 
 // Users Table
 export const users = pgTable('users', {
@@ -42,6 +48,14 @@ export const artists = pgTable('artists', {
 	id: uuid('id').primaryKey().defaultRandom(),
 	name: text('name').notNull(),
 	mbid: text('mbid').unique(),
+	/** Artist type from MusicBrainz (Person, Group, Orchestra, Choir, Character, Other) */
+	type: artistTypeEnum('type'),
+	/** Gender (only for Person artists) */
+	gender: genderEnum('gender'),
+	/** Birth date for Person, founding date for Group (raw string from MB: YYYY, YYYY-MM, or YYYY-MM-DD) */
+	begin_date: text('begin_date'),
+	/** Death date for Person, dissolution date for Group */
+	end_date: text('end_date'),
 	image_url: text('image_url'),
 })
 

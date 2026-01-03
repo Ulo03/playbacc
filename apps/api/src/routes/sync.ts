@@ -59,6 +59,7 @@ sync.get('/search/artists', async (ctx) => {
 				name: a.name,
 				sortName: a['sort-name'],
 				type: a.type,
+				gender: a.gender,
 				score: a.score,
 				country: a.country,
 				disambiguation: a.disambiguation,

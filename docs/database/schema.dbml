@@ -14,6 +14,21 @@ Enum "import_status" {
     "failed"
 }
 
+Enum "artist_type" {
+    "person"
+    "group"
+    "orchestra"
+    "choir"
+    "character"
+    "other"
+}
+
+Enum "gender" {
+    "male"
+    "female"
+    "other"
+}
+
 Table "public"."imports" {
   "id" uuid [pk, not null]
   "user_id" uuid [not null, ref: < "public"."users"."id"]
@@ -81,6 +96,10 @@ Table "public"."artists" {
   "id" uuid [pk, not null]
   "name" text [not null]
   "mbid" text [unique]
+  "type" artist_type // MusicBrainz artist type (Person, Group, Orchestra, etc.)
+  "gender" gender // Gender (only for Person artists)
+  "begin_date" text // Birth date (Person) or founding date (Group) - raw MB format
+  "end_date" text // Death date (Person) or dissolution date (Group) - raw MB format
   "image_url" text
 }
 

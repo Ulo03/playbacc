@@ -290,18 +290,83 @@ export interface SyncArtistRelationshipsResult {
 }
 
 /**
+ * Converts MusicBrainz artist type to our enum value.
+ */
+function normalizeArtistType(
+	mbType: string | undefined
+): 'person' | 'group' | 'orchestra' | 'choir' | 'character' | 'other' | null {
+	if (!mbType) return null
+	const lower = mbType.toLowerCase()
+	if (lower === 'person') return 'person'
+	if (lower === 'group') return 'group'
+	if (lower === 'orchestra') return 'orchestra'
+	if (lower === 'choir') return 'choir'
+	if (lower === 'character') return 'character'
+	if (lower === 'other') return 'other'
+	return null
+}
+
+/**
+ * Converts MusicBrainz gender to our enum value.
+ */
+function normalizeGender(
+	mbGender: string | undefined | null
+): 'male' | 'female' | 'other' | null {
+	if (!mbGender) return null
+	const lower = mbGender.toLowerCase()
+	if (lower === 'male') return 'male'
+	if (lower === 'female') return 'female'
+	if (lower === 'other') return 'other'
+	return null
+}
+
+/**
  * Ensures an artist exists in the database, creating if needed.
+ * Also updates metadata from MusicBrainz if available.
  *
  * @param mbid - MusicBrainz artist ID
  * @param name - Artist name
+ * @param mbDetails - Optional MusicBrainz artist details for metadata
  * @returns Artist database ID
  */
-async function ensureArtistByMbid(mbid: string, name: string): Promise<string> {
+async function ensureArtistByMbid(
+	mbid: string,
+	name: string,
+	mbDetails?: MusicBrainzArtistDetails | null
+): Promise<string> {
+	// Prepare metadata updates from MB details
+	const metadataUpdates: Partial<typeof artists.$inferInsert> = {}
+	if (mbDetails) {
+		const artistType = normalizeArtistType(mbDetails.type)
+		if (artistType) metadataUpdates.type = artistType
+
+		// Gender only applies to Person artists
+		if (mbDetails.type === 'Person' && mbDetails.gender) {
+			const gender = normalizeGender(mbDetails.gender)
+			if (gender) metadataUpdates.gender = gender
+		}
+
+		// Life span dates
+		if (mbDetails['life-span']?.begin) {
+			metadataUpdates.begin_date = mbDetails['life-span'].begin
+		}
+		if (mbDetails['life-span']?.end) {
+			metadataUpdates.end_date = mbDetails['life-span'].end
+		}
+	}
+
 	// Try to find by MBID
 	const existing = await db.query.artists.findFirst({
 		where: (a, { eq }) => eq(a.mbid, mbid),
 	})
 	if (existing) {
+		// Update metadata if we have new info
+		if (Object.keys(metadataUpdates).length > 0) {
+			await db
+				.update(artists)
+				.set(metadataUpdates)
+				.where(eq(artists.id, existing.id))
+		}
 		return existing.id
 	}
 
@@ -310,18 +375,18 @@ async function ensureArtistByMbid(mbid: string, name: string): Promise<string> {
 		where: (a, { eq }) => eq(a.name, name),
 	})
 	if (existingByName) {
-		// Update with MBID
+		// Update with MBID and metadata
 		await db
 			.update(artists)
-			.set({ mbid })
+			.set({ mbid, ...metadataUpdates })
 			.where(eq(artists.id, existingByName.id))
 		return existingByName.id
 	}
 
-	// Create new artist
+	// Create new artist with all metadata
 	const [newArtist] = await db
 		.insert(artists)
-		.values({ name, mbid })
+		.values({ name, mbid, ...metadataUpdates })
 		.returning()
 
 	return newArtist.id
@@ -357,8 +422,12 @@ export async function syncArtistRelationshipsByMbid(
 
 		result.artistType = mbArtist.type ?? null
 
-		// Ensure the artist exists in our database
-		const artistId = await ensureArtistByMbid(artistMbid, mbArtist.name)
+		// Ensure the artist exists in our database with full metadata
+		const artistId = await ensureArtistByMbid(
+			artistMbid,
+			mbArtist.name,
+			mbArtist
+		)
 
 		// Handle based on artist type
 		if (mbArtist.type === 'Group') {

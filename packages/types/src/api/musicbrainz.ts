@@ -116,6 +116,9 @@ export interface MusicBrainzArtistDetails {
 	'sort-name'?: string
 	type?: 'Person' | 'Group' | 'Orchestra' | 'Choir' | 'Character' | 'Other'
 	'type-id'?: string
+	/** Gender (only for Person type) */
+	gender?: 'Male' | 'Female' | 'Other' | null
+	'gender-id'?: string
 	country?: string
 	/** Artist area (country/city) */
 	area?: {
@@ -149,6 +152,8 @@ export interface MusicBrainzArtistSearchResult {
 	name: string
 	'sort-name'?: string
 	type?: 'Person' | 'Group' | 'Orchestra' | 'Choir' | 'Character' | 'Other'
+	/** Gender (only for Person type) */
+	gender?: 'Male' | 'Female' | 'Other' | null
 	score?: number
 	country?: string
 	/** Disambiguation comment to differentiate artists with same name */
