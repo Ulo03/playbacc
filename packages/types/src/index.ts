@@ -14,3 +14,7 @@ export * from './schemas/imports';
 // Export Drizzle database schemas
 export * from './db/enums';
 export * from './db/schema';
+
+// Export API types
+export * from './api/spotify';
+export * from './api/musicbrainz';

@@ -17,6 +17,8 @@
     "exports": {
         ".": "./src/index.ts",
         "./db/enums": "./src/db/enums.ts",
-        "./db/schema": "./src/db/schema.ts"
+        "./db/schema": "./src/db/schema.ts",
+        "./api/spotify": "./src/api/spotify.ts",
+        "./api/musicbrainz": "./src/api/musicbrainz.ts"
     }
 }

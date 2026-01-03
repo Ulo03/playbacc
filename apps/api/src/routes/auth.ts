@@ -8,7 +8,7 @@ import { accounts, users } from '@playbacc/types/db/schema';
 const auth = new Hono();
 
 auth.get('/spotify/login', async (ctx) => {
-    const scope = ['user-read-private', 'user-read-email'];
+    const scope = ['user-read-private', 'user-read-email', 'user-read-recently-played'];
     const authUrl = getAuthUrl(undefined, scope);
 
     return ctx.json({ url: authUrl });
