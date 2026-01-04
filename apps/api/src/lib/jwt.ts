@@ -1,32 +1,34 @@
-import * as jose from 'jose';
+import * as jose from 'jose'
 
-const JWT_SECRET = process.env.JWT_SECRET ? new TextEncoder().encode(process.env.JWT_SECRET) : null;
+const JWT_SECRET = process.env.JWT_SECRET
+	? new TextEncoder().encode(process.env.JWT_SECRET)
+	: null
 
 if (!JWT_SECRET) {
-    throw new Error('JWT_SECRET is not set');
+	throw new Error('JWT_SECRET is not set')
 }
 
 export interface JWTPayload extends jose.JWTPayload {
-    user_id: string;
-    external_id: string;
-    provider: 'spotify';
+	user_id: string
+	external_id: string
+	provider: 'spotify'
 }
 
 export const signToken = async (payload: JWTPayload) => {
-    const jwt = await new jose.SignJWT(payload)
-        .setProtectedHeader({ alg: 'HS256' })
-        .setIssuedAt()
-        .setExpirationTime('7d')
-        .sign(JWT_SECRET);
+	const jwt = await new jose.SignJWT(payload)
+		.setProtectedHeader({ alg: 'HS256' })
+		.setIssuedAt()
+		.setExpirationTime('7d')
+		.sign(JWT_SECRET)
 
-    return jwt;
+	return jwt
 }
 
 export const verifyToken = async (token: string) => {
-    try {
-        const { payload } = await jose.jwtVerify<JWTPayload>(token, JWT_SECRET);
-        return payload;
-    } catch (error) {
-        return null;
-    }
+	try {
+		const { payload } = await jose.jwtVerify<JWTPayload>(token, JWT_SECRET)
+		return payload
+	} catch (error) {
+		return null
+	}
 }
