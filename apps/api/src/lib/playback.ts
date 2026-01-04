@@ -74,6 +74,15 @@ export const PLAYBACK_CONFIG = {
 		process.env.SCROBBLE_STALE_SESSION_MS || '1800000',
 		10
 	),
+	/**
+	 * Percentage of track duration that must be played for a track to NOT be considered skipped.
+	 * If a track meets the scrobble threshold but was finalized before reaching this percentage,
+	 * it's marked as skipped. Default: 90% - completing less than 90% of a track = skip.
+	 */
+	skipThresholdPercent: parseInt(
+		process.env.SCROBBLE_SKIP_THRESHOLD_PERCENT || '90',
+		10
+	),
 }
 
 /**
@@ -162,6 +171,22 @@ export async function clearPlaybackSession(userId: string): Promise<void> {
 }
 
 /**
+ * Determines if a session represents a skipped track.
+ * A track is considered skipped if it:
+ * 1. Meets the scrobble threshold (played enough to count)
+ * 2. But was finalized before reaching the skip threshold percentage of the track
+ *
+ * @param accumulatedMs - How long the track was actually played
+ * @param trackDurationMs - Total track duration
+ * @returns True if the track should be marked as skipped
+ */
+function isSkipped(accumulatedMs: number, trackDurationMs: number): boolean {
+	const skipThresholdMs =
+		(trackDurationMs * PLAYBACK_CONFIG.skipThresholdPercent) / 100
+	return accumulatedMs < skipThresholdMs
+}
+
+/**
  * Finalizes a playback session into a scrobble if it meets the threshold.
  * Uses stored track_metadata from the session for reliable finalization
  * even when the currently playing track has changed.
@@ -237,16 +262,21 @@ export async function finalizeSession(
 			mbCache
 		)
 
+		// Determine if this was a skip (met threshold but didn't complete the track)
+		const skipped = isSkipped(session.accumulated_ms, trackDurationMs)
+
 		const inserted = await persistScrobbleFromMetadata(
 			userId,
 			session.started_at,
 			session.accumulated_ms,
-			metadata
+			metadata,
+			skipped
 		)
 
 		if (inserted) {
+			const skipLabel = skipped ? ' [SKIPPED]' : ''
 			console.log(
-				`[Playback] Scrobbled: "${metadata.title}" (${Math.round(session.accumulated_ms / 1000)}s)`
+				`[Playback] Scrobbled: "${metadata.title}" (${Math.round(session.accumulated_ms / 1000)}s / ${Math.round(trackDurationMs / 1000)}s)${skipLabel}`
 			)
 		}
 

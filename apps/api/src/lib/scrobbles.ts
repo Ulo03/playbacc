@@ -1067,13 +1067,15 @@ export async function persistScrobble(
  * @param playedAt - When the track started playing
  * @param durationMs - How long the track was played (accumulated)
  * @param metadata - Resolved track metadata
+ * @param skipped - Whether the track was skipped (played enough to scrobble but not to completion)
  * @returns True if scrobble was inserted, false if duplicate
  */
 export async function persistScrobbleFromMetadata(
 	userId: string,
 	playedAt: Date,
 	durationMs: number,
-	metadata: ResolvedTrackMetadata
+	metadata: ResolvedTrackMetadata,
+	skipped: boolean = false
 ): Promise<boolean> {
 	try {
 		// Upsert track
@@ -1108,7 +1110,7 @@ export async function persistScrobbleFromMetadata(
 				album_id: albumId,
 				played_at: playedAt,
 				played_duration_ms: durationMs,
-				skipped: false,
+				skipped,
 				provider: 'spotify',
 			})
 			.onConflictDoNothing({
