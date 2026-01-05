@@ -26,7 +26,7 @@ export const users = pgTable('users', {
 	username: text('username').unique(),
 	image_url: text('image_url'),
 	role: userRoleEnum('role').notNull().default('user'),
-	created_at: timestamp('created_at').notNull().defaultNow(),
+	created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
 // Accounts Table
@@ -176,9 +176,9 @@ export const imports = pgTable(
 		imported_records: integer('imported_records').default(0),
 		failed_records: integer('failed_records').default(0),
 		error_message: jsonb('error_message'),
-		started_at: timestamp('started_at'),
-		completed_at: timestamp('completed_at'),
-		created_at: timestamp('created_at').notNull().defaultNow(),
+		started_at: timestamp('started_at', { withTimezone: true }),
+		completed_at: timestamp('completed_at', { withTimezone: true }),
+		created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 	},
 	(table) => [
 		index('idx_imports_user').on(table.user_id),
@@ -199,7 +199,7 @@ export const scrobbles = pgTable(
 			.notNull()
 			.references(() => tracks.id),
 		album_id: uuid('album_id').references(() => albums.id),
-		played_at: timestamp('played_at').notNull(),
+		played_at: timestamp('played_at', { withTimezone: true }).notNull(),
 		played_duration_ms: integer('played_duration_ms').notNull().default(0),
 		skipped: boolean('skipped').notNull().default(false),
 		import_id: uuid('import_id').references(() => imports.id),
@@ -228,8 +228,8 @@ export const scrobble_state = pgTable(
 			.notNull()
 			.references(() => users.id),
 		provider: accountProviderEnum('provider').notNull(),
-		last_played_at: timestamp('last_played_at'),
-		updated_at: timestamp('updated_at').notNull().defaultNow(),
+		last_played_at: timestamp('last_played_at', { withTimezone: true }),
+		updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 	},
 	(table) => [
 		primaryKey({
@@ -251,9 +251,9 @@ export const playback_sessions = pgTable(
 		/** Track URI (e.g. spotify:track:...) - use extractTrackIdFromUri() to get the ID */
 		track_uri: text('track_uri').notNull(),
 		/** When this specific play instance started */
-		started_at: timestamp('started_at').notNull(),
+		started_at: timestamp('started_at', { withTimezone: true }).notNull(),
 		/** Last time we polled and saw this track */
-		last_seen_at: timestamp('last_seen_at').notNull(),
+		last_seen_at: timestamp('last_seen_at', { withTimezone: true }).notNull(),
 		/** Progress in ms at last poll */
 		last_progress_ms: integer('last_progress_ms').notNull().default(0),
 		/** Total accumulated listening time in ms (only counted while playing) */
@@ -266,7 +266,7 @@ export const playback_sessions = pgTable(
 		track_metadata: jsonb('track_metadata'),
 		/** Whether this session has already been scrobbled (prevents double-scrobble on pause/resume) */
 		scrobbled: boolean('scrobbled').notNull().default(false),
-		updated_at: timestamp('updated_at').notNull().defaultNow(),
+		updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 	},
 	(table) => [
 		primaryKey({

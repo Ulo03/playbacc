@@ -135,17 +135,20 @@ export async function getPlaybackSession(
 }
 
 /**
- * Creates or updates a playback session
+ * Creates or updates a playback session.
+ * All timestamps are explicitly converted to ensure UTC storage.
  */
 export async function upsertPlaybackSession(
 	userId: string,
 	data: Omit<PlaybackSession, 'updated_at'>
 ): Promise<void> {
+	const now = new Date()
+
 	await db
 		.insert(playback_sessions)
 		.values({
 			...data,
-			updated_at: new Date(),
+			updated_at: now,
 		})
 		.onConflictDoUpdate({
 			target: [playback_sessions.user_id, playback_sessions.provider],
@@ -159,7 +162,7 @@ export async function upsertPlaybackSession(
 				track_duration_ms: data.track_duration_ms,
 				track_metadata: data.track_metadata,
 				scrobbled: data.scrobbled,
-				updated_at: new Date(),
+				updated_at: now,
 			},
 		})
 }

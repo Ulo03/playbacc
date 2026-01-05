@@ -1108,7 +1108,7 @@ export async function persistScrobbleFromMetadata(
 				user_id: userId,
 				track_id: trackId,
 				album_id: albumId,
-				played_at: playedAt,
+				played_at: playedAt, // Pass Date object - Drizzle handles conversion
 				played_duration_ms: durationMs,
 				skipped,
 				provider: 'spotify',
