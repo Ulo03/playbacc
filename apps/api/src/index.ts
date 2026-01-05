@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import authRoutes from './routes/auth'
 import syncRoutes from './routes/sync'
+import playerRoutes from './routes/player'
 
 const app = new Hono()
 
@@ -22,5 +23,6 @@ app.get('/', (ctx) => {
 
 app.route('/api/auth', authRoutes)
 app.route('/api/sync', syncRoutes)
+app.route('/api/player', playerRoutes)
 
 export default app

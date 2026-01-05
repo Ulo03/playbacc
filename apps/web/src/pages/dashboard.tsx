@@ -1,12 +1,110 @@
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Palette } from 'lucide-react'
-import spotifyLogo from '@/assets/spotify_black.png'
+import { Card, CardContent } from '@/components/ui/card'
+import { Palette, Disc3 } from 'lucide-react'
+import spotifyLogo from '@/assets/spotify.svg'
+
+interface CurrentlyPlayingTrack {
+	id: string
+	name: string
+	duration_ms: number
+	explicit: boolean
+	album: {
+		id: string
+		name: string
+		images: Array<{ url: string; height: number; width: number }>
+	}
+	artists: Array<{ id: string; name: string }>
+}
+
+interface CurrentlyPlayingResponse {
+	playing: boolean
+	is_playing?: boolean
+	progress_ms?: number
+	track?: CurrentlyPlayingTrack
+}
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 export function DashboardPage() {
-	const { user, logout } = useAuth()
+	const { user, token, logout } = useAuth()
+	const [currentlyPlaying, setCurrentlyPlaying] = useState<CurrentlyPlayingResponse | null>(null)
+	const [isLoading, setIsLoading] = useState(true)
+	const [error, setError] = useState<string | null>(null)
+	
+	// Local progress state for smooth animation
+	const [localProgress, setLocalProgress] = useState(0)
+	const lastFetchTime = useRef<number>(Date.now())
+
+	const fetchCurrentlyPlaying = useCallback(async () => {
+		if (!token) return
+
+		try {
+			setError(null)
+			const response = await fetch(`${API_URL}/api/player/currently-playing`, {
+				headers: {
+					Authorization: `Bearer ${token}`,
+				},
+			})
+
+			if (!response.ok) {
+				throw new Error('Failed to fetch currently playing')
+			}
+
+			const data = await response.json()
+			setCurrentlyPlaying(data)
+			
+			// Reset local progress to fetched progress
+			if (data.playing && data.progress_ms !== undefined) {
+				setLocalProgress(data.progress_ms)
+				lastFetchTime.current = Date.now()
+			}
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Unknown error')
+		} finally {
+			setIsLoading(false)
+		}
+	}, [token])
+
+	useEffect(() => {
+		fetchCurrentlyPlaying()
+
+		// Poll every 10 seconds
+		const interval = setInterval(fetchCurrentlyPlaying, 10000)
+		return () => clearInterval(interval)
+	}, [fetchCurrentlyPlaying])
+
+	// Animate progress every second when playing
+	useEffect(() => {
+		if (!currentlyPlaying?.playing || !currentlyPlaying?.is_playing || !currentlyPlaying?.track) {
+			return
+		}
+
+		const interval = setInterval(() => {
+			setLocalProgress(prev => {
+				const newProgress = prev + 1000
+				// Don't exceed track duration
+				if (newProgress >= currentlyPlaying.track!.duration_ms) {
+					return currentlyPlaying.track!.duration_ms
+				}
+				return newProgress
+			})
+		}, 1000)
+
+		return () => clearInterval(interval)
+	}, [currentlyPlaying?.playing, currentlyPlaying?.is_playing, currentlyPlaying?.track])
+
+	const formatDuration = (ms: number) => {
+		const minutes = Math.floor(ms / 60000)
+		const seconds = Math.floor((ms % 60000) / 1000)
+		return `${minutes}:${seconds.toString().padStart(2, '0')}`
+	}
+
+	const progressPercent = currentlyPlaying?.playing && currentlyPlaying.track
+		? (localProgress / currentlyPlaying.track.duration_ms) * 100
+		: 0
 
 	return (
 		<div className="min-h-screen bg-background">
@@ -56,7 +154,7 @@ export function DashboardPage() {
 							</span>
 						</div>
 
-						<Button variant="ghost" size="sm" onClick={logout}>
+						<Button variant="ghost" className="hover:cursor-pointer" size="sm" onClick={logout}>
 							Sign out
 						</Button>
 					</div>
@@ -74,55 +172,67 @@ export function DashboardPage() {
 					</p>
 				</div>
 
-				<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-					<Card>
-						<CardHeader>
-							<CardTitle className="flex items-center gap-2">
-								<img src={spotifyLogo} alt="Spotify" className="w-4 h-4" />
-								Spotify Connected
-							</CardTitle>
-							<CardDescription>
-								Your account is linked and syncing
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<p className="text-sm text-muted-foreground">
-								Listening history is being tracked automatically.
-							</p>
-						</CardContent>
-					</Card>
-
-					<Card>
-						<CardHeader>
-							<CardTitle>Recent Scrobbles</CardTitle>
-							<CardDescription>Your latest plays</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<p className="text-sm text-muted-foreground">
-								No recent scrobbles yet. Start playing music on Spotify!
-							</p>
-						</CardContent>
-					</Card>
-
-					<Card>
-						<CardHeader>
-							<CardTitle>Statistics</CardTitle>
-							<CardDescription>Your listening stats</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<div className="grid grid-cols-2 gap-4">
-								<div>
-									<p className="text-2xl font-bold">0</p>
-									<p className="text-xs text-muted-foreground">Total scrobbles</p>
-								</div>
-								<div>
-									<p className="text-2xl font-bold">0</p>
-									<p className="text-xs text-muted-foreground">Artists</p>
+				<Card className="max-w-md">
+					<CardContent className="">
+						{error ? (
+							<p className="text-sm text-destructive">{error}</p>
+						) : isLoading && !currentlyPlaying ? (
+							<div className="flex items-center gap-3">
+								<div className="w-12 h-12 bg-muted animate-pulse" />
+								<div className="flex-1 space-y-2">
+									<div className="h-4 bg-muted animate-pulse w-3/4" />
+									<div className="h-3 bg-muted animate-pulse w-1/2" />
 								</div>
 							</div>
-						</CardContent>
-					</Card>
-				</div>
+						) : currentlyPlaying?.playing && currentlyPlaying.track ? (
+							<div className="space-y-3">
+								<div className="flex items-center gap-3">
+									{currentlyPlaying.track.album.images[0] ? (
+										<img
+											src={currentlyPlaying.track.album.images[0].url}
+											alt={currentlyPlaying.track.album.name}
+											className="w-12 h-12 object-cover"
+										/>
+									) : (
+										<div className="w-12 h-12 bg-muted flex items-center justify-center">
+											<Disc3 className="size-6 text-muted-foreground" />
+										</div>
+									)}
+									<div className="flex-1 min-w-0">
+										<p className="text-sm font-medium truncate">
+											{currentlyPlaying.track.name}
+										</p>
+										<p className="text-xs text-muted-foreground truncate">
+											{currentlyPlaying.track.artists.map(a => a.name).join(', ')}
+										</p>
+									</div>
+									{currentlyPlaying.is_playing && (
+										<img src={spotifyLogo} alt="Playing on Spotify" className="size-5 shrink-0" />
+									)}
+								</div>
+								<div className="space-y-1">
+									<div className="h-1 bg-muted overflow-hidden">
+										<div 
+											className="h-full bg-foreground/50 transition-all duration-1000"
+											style={{ width: `${progressPercent}%` }}
+										/>
+									</div>
+									<div className="flex justify-between text-xs text-muted-foreground">
+										<span>{formatDuration(localProgress)}</span>
+										<span>{formatDuration(currentlyPlaying.track.duration_ms)}</span>
+									</div>
+								</div>
+							</div>
+						) : (
+							<div className="flex items-center gap-3 text-muted-foreground">
+								<div className="w-12 h-12 bg-muted/50 flex items-center justify-center">
+									<Disc3 className="size-6" />
+								</div>
+								<p className="text-sm">Nothing playing right now</p>
+							</div>
+						)}
+					</CardContent>
+				</Card>
 			</main>
 		</div>
 	)
