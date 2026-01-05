@@ -363,7 +363,7 @@ export function DashboardPage() {
 							</div>
 						) : currentlyPlaying?.playing && currentlyPlaying.track ? (
 							<div className="space-y-3">
-								<div className="flex items-center gap-3">
+								<div className="flex items-center gap-3 py-2 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors cursor-pointer">
 									{currentlyPlaying.track.album.images[0] ? (
 										<img
 											src={currentlyPlaying.track.album.images[0].url}
@@ -436,7 +436,7 @@ export function DashboardPage() {
 								{recentlyPlayed.items.map((item) => (
 									<div
 										key={`${item.track.id}-${item.played_at}`}
-										className="flex items-center gap-3 py-2 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors"
+										className="flex items-center gap-3 py-2 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
 									>
 										{item.track.album.images?.[0] ? (
 											<img
@@ -498,7 +498,7 @@ export function DashboardPage() {
 									{topGroups.items.map((artist, index) => (
 										<div
 											key={artist.id}
-											className="flex items-center gap-3 py-2 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors"
+											className="flex items-center gap-3 py-2 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
 										>
 											<span className="text-xs text-muted-foreground w-4 text-right tabular-nums">
 												{index + 1}
@@ -558,7 +558,7 @@ export function DashboardPage() {
 									{topSoloArtists.items.map((artist, index) => (
 										<div
 											key={artist.id}
-											className="flex items-center gap-3 py-2 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors"
+											className="flex items-center gap-3 py-2 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
 										>
 											<span className="text-xs text-muted-foreground w-4 text-right tabular-nums">
 												{index + 1}
