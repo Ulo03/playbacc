@@ -83,6 +83,14 @@ export const PLAYBACK_CONFIG = {
 		process.env.SCROBBLE_SKIP_THRESHOLD_PERCENT || '90',
 		10
 	),
+	/**
+	 * End-of-track margin in milliseconds.
+	 * When a track's accumulated play time is within this margin of the track duration,
+	 * it's treated as fully played. This compensates for polling intervals that may
+	 * miss the final few seconds of playback.
+	 * Default: 15000ms (15s) - should be higher than the polling interval (8s).
+	 */
+	endMarginMs: parseInt(process.env.SCROBBLE_END_MARGIN_MS || '15000', 10),
 }
 
 /**
@@ -171,19 +179,47 @@ export async function clearPlaybackSession(userId: string): Promise<void> {
 }
 
 /**
+ * Calculates the effective accumulated play time, applying the end-of-track margin.
+ * If the actual accumulated time is within `endMarginMs` of the track duration,
+ * we treat it as fully played. This compensates for polling intervals that may
+ * miss the final few seconds of playback.
+ *
+ * @param accumulatedMs - How long the track was actually played
+ * @param trackDurationMs - Total track duration
+ * @returns Effective accumulated time (clamped to track duration)
+ */
+function getEffectiveAccumulatedMs(
+	accumulatedMs: number,
+	trackDurationMs: number
+): number {
+	// If within margin of end, treat as fully played
+	if (accumulatedMs + PLAYBACK_CONFIG.endMarginMs >= trackDurationMs) {
+		return trackDurationMs
+	}
+	return accumulatedMs
+}
+
+/**
  * Determines if a session represents a skipped track.
  * A track is considered skipped if it:
  * 1. Meets the scrobble threshold (played enough to count)
  * 2. But was finalized before reaching the skip threshold percentage of the track
+ *
+ * Uses effective accumulated time (with end margin applied) to avoid marking
+ * nearly-completed tracks as skipped due to polling timing.
  *
  * @param accumulatedMs - How long the track was actually played
  * @param trackDurationMs - Total track duration
  * @returns True if the track should be marked as skipped
  */
 function isSkipped(accumulatedMs: number, trackDurationMs: number): boolean {
+	const effectiveMs = getEffectiveAccumulatedMs(
+		accumulatedMs,
+		trackDurationMs
+	)
 	const skipThresholdMs =
 		(trackDurationMs * PLAYBACK_CONFIG.skipThresholdPercent) / 100
-	return accumulatedMs < skipThresholdMs
+	return effectiveMs < skipThresholdMs
 }
 
 /**
@@ -262,21 +298,32 @@ export async function finalizeSession(
 			mbCache
 		)
 
+		// Calculate effective accumulated time (with end margin applied)
+		const effectiveAccumulatedMs = getEffectiveAccumulatedMs(
+			session.accumulated_ms,
+			trackDurationMs
+		)
+
 		// Determine if this was a skip (met threshold but didn't complete the track)
 		const skipped = isSkipped(session.accumulated_ms, trackDurationMs)
 
 		const inserted = await persistScrobbleFromMetadata(
 			userId,
 			session.started_at,
-			session.accumulated_ms,
+			effectiveAccumulatedMs,
 			metadata,
 			skipped
 		)
 
 		if (inserted) {
 			const skipLabel = skipped ? ' [SKIPPED]' : ''
+			// Log shows actual accumulated time for debugging, but persisted value uses effective time
+			const marginApplied =
+				effectiveAccumulatedMs !== session.accumulated_ms
+					? ` (adjusted from ${Math.round(session.accumulated_ms / 1000)}s)`
+					: ''
 			console.log(
-				`[Playback] Scrobbled: "${metadata.title}" (${Math.round(session.accumulated_ms / 1000)}s / ${Math.round(trackDurationMs / 1000)}s)${skipLabel}`
+				`[Playback] Scrobbled: "${metadata.title}" (${Math.round(effectiveAccumulatedMs / 1000)}s / ${Math.round(trackDurationMs / 1000)}s${marginApplied})${skipLabel}`
 			)
 		}
 
