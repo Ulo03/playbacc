@@ -62,15 +62,18 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 export function DashboardPage() {
 	const { user, token, logout } = useAuth()
-	const [currentlyPlaying, setCurrentlyPlaying] = useState<CurrentlyPlayingResponse | null>(null)
-	const [recentlyPlayed, setRecentlyPlayed] = useState<RecentlyPlayedResponse | null>(null)
+	const [currentlyPlaying, setCurrentlyPlaying] =
+		useState<CurrentlyPlayingResponse | null>(null)
+	const [recentlyPlayed, setRecentlyPlayed] =
+		useState<RecentlyPlayedResponse | null>(null)
 	const [topGroups, setTopGroups] = useState<TopArtistsResponse | null>(null)
-	const [topSoloArtists, setTopSoloArtists] = useState<TopArtistsResponse | null>(null)
+	const [topSoloArtists, setTopSoloArtists] =
+		useState<TopArtistsResponse | null>(null)
 	const [isLoading, setIsLoading] = useState(true)
 	const [isLoadingRecent, setIsLoadingRecent] = useState(true)
 	const [isLoadingTopArtists, setIsLoadingTopArtists] = useState(true)
 	const [error, setError] = useState<string | null>(null)
-	
+
 	// Progress tracking - store base progress from API and calculate current progress
 	const [baseProgress, setBaseProgress] = useState(0)
 	const [displayTime, setDisplayTime] = useState(0) // Only for time text display
@@ -83,11 +86,14 @@ export function DashboardPage() {
 
 		try {
 			setError(null)
-			const response = await fetch(`${API_URL}/api/player/currently-playing`, {
-				headers: {
-					Authorization: `Bearer ${token}`,
-				},
-			})
+			const response = await fetch(
+				`${API_URL}/api/player/currently-playing`,
+				{
+					headers: {
+						Authorization: `Bearer ${token}`,
+					},
+				}
+			)
 
 			if (!response.ok) {
 				throw new Error('Failed to fetch currently playing')
@@ -95,7 +101,7 @@ export function DashboardPage() {
 
 			const data = await response.json()
 			setCurrentlyPlaying(data)
-			
+
 			// Reset progress to fetched progress
 			if (data.playing && data.progress_ms !== undefined) {
 				setBaseProgress(data.progress_ms)
@@ -113,11 +119,14 @@ export function DashboardPage() {
 		if (!token) return
 
 		try {
-			const response = await fetch(`${API_URL}/api/player/recently-played?limit=10`, {
-				headers: {
-					Authorization: `Bearer ${token}`,
-				},
-			})
+			const response = await fetch(
+				`${API_URL}/api/player/recently-played?limit=10`,
+				{
+					headers: {
+						Authorization: `Bearer ${token}`,
+					},
+				}
+			)
 
 			if (!response.ok) {
 				throw new Error('Failed to fetch recently played')
@@ -183,31 +192,41 @@ export function DashboardPage() {
 		return () => {
 			clearInterval(interval)
 			clearInterval(recentInterval)
-			document.removeEventListener('visibilitychange', handleVisibilityChange)
+			document.removeEventListener(
+				'visibilitychange',
+				handleVisibilityChange
+			)
 		}
 	}, [fetchCurrentlyPlaying, fetchRecentlyPlayed, fetchTopArtists])
 
 	// Detect track changes and refresh recently played
 	useEffect(() => {
 		const currentTrackId = currentlyPlaying?.track?.id ?? null
-		
-		if (previousTrackId.current !== null && currentTrackId !== previousTrackId.current) {
+
+		if (
+			previousTrackId.current !== null &&
+			currentTrackId !== previousTrackId.current
+		) {
 			// Track changed (skip or natural end) - refresh recently played after delays
 			// Spotify API can take a few seconds to update, so we poll multiple times
 			const delays = [1000, 2500, 5000, 8000]
-			delays.forEach(delay => {
+			delays.forEach((delay) => {
 				setTimeout(() => {
 					fetchRecentlyPlayed()
 				}, delay)
 			})
 		}
-		
+
 		previousTrackId.current = currentTrackId
 	}, [currentlyPlaying?.track?.id, fetchRecentlyPlayed])
 
 	// Animate progress smoothly using requestAnimationFrame
 	useEffect(() => {
-		if (!currentlyPlaying?.playing || !currentlyPlaying?.is_playing || !currentlyPlaying?.track) {
+		if (
+			!currentlyPlaying?.playing ||
+			!currentlyPlaying?.is_playing ||
+			!currentlyPlaying?.track
+		) {
 			return
 		}
 
@@ -220,7 +239,7 @@ export function DashboardPage() {
 			const elapsed = performance.now() - lastFetchTime.current
 			const newProgress = Math.min(baseProgress + elapsed, trackDuration)
 			const percent = (newProgress / trackDuration) * 100
-			
+
 			// Directly update DOM for smooth animation (no React re-render)
 			if (progressBarRef.current) {
 				progressBarRef.current.style.width = `${percent}%`
@@ -253,7 +272,14 @@ export function DashboardPage() {
 		animationId = requestAnimationFrame(animate)
 
 		return () => cancelAnimationFrame(animationId)
-	}, [currentlyPlaying?.playing, currentlyPlaying?.is_playing, currentlyPlaying?.track?.id, baseProgress, fetchCurrentlyPlaying, fetchRecentlyPlayed])
+	}, [
+		currentlyPlaying?.playing,
+		currentlyPlaying?.is_playing,
+		currentlyPlaying?.track?.id,
+		baseProgress,
+		fetchCurrentlyPlaying,
+		fetchRecentlyPlayed,
+	])
 
 	const formatDuration = (ms: number) => {
 		const minutes = Math.floor(ms / 60000)
@@ -263,7 +289,19 @@ export function DashboardPage() {
 
 	const formatPlayedAt = (dateString: string) => {
 		const date = new Date(dateString)
-		return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+		const now = Date.now()
+		const diffMs = now - date.getTime()
+		const diffSeconds = Math.floor(diffMs / 1000)
+		const diffMinutes = Math.floor(diffSeconds / 60)
+		const diffHours = Math.floor(diffMinutes / 60)
+
+		if (diffSeconds < 60) {
+			return 'just now'
+		} else if (diffMinutes < 60) {
+			return `${diffMinutes}m ago`
+		} else {
+			return `${diffHours}h ago`
+		}
 	}
 
 	const formatListeningTime = (ms: number) => {
@@ -275,9 +313,10 @@ export function DashboardPage() {
 		return `${hours}h ${remainingMins}min`
 	}
 
-	const progressPercent = currentlyPlaying?.playing && currentlyPlaying.track
-		? (baseProgress / currentlyPlaying.track.duration_ms) * 100
-		: 0
+	const progressPercent =
+		currentlyPlaying?.playing && currentlyPlaying.track
+			? (baseProgress / currentlyPlaying.track.duration_ms) * 100
+			: 0
 
 	return (
 		<div className="min-h-screen bg-background">
@@ -307,7 +346,7 @@ export function DashboardPage() {
 								<Palette className="size-4" />
 							</Link>
 						</Button>
-						
+
 						<div className="flex items-center gap-2 pl-3 border-l border-border">
 							{user?.image_url ? (
 								<img
@@ -318,7 +357,8 @@ export function DashboardPage() {
 							) : (
 								<div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center">
 									<span className="text-xs font-medium">
-										{user?.username?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase()}
+										{user?.username?.[0]?.toUpperCase() ??
+											user?.email?.[0]?.toUpperCase()}
 									</span>
 								</div>
 							)}
@@ -327,7 +367,12 @@ export function DashboardPage() {
 							</span>
 						</div>
 
-						<Button variant="ghost" className="hover:cursor-pointer" size="sm" onClick={logout}>
+						<Button
+							variant="ghost"
+							className="hover:cursor-pointer"
+							size="sm"
+							onClick={logout}
+						>
 							Sign out
 						</Button>
 					</div>
@@ -338,7 +383,8 @@ export function DashboardPage() {
 			<main className="container mx-auto px-4 py-8">
 				<div className="mb-8">
 					<h1 className="text-2xl font-bold tracking-tight mb-1">
-						Welcome back, {user?.username ?? user?.email?.split('@')[0]}
+						Welcome back,{' '}
+						{user?.username ?? user?.email?.split('@')[0]}
 					</h1>
 					<p className="text-muted-foreground text-sm">
 						Your listening activity dashboard
@@ -361,13 +407,20 @@ export function DashboardPage() {
 									<div className="h-3 bg-muted animate-pulse w-1/2" />
 								</div>
 							</div>
-						) : currentlyPlaying?.playing && currentlyPlaying.track ? (
+						) : currentlyPlaying?.playing &&
+						  currentlyPlaying.track ? (
 							<div className="space-y-3">
 								<div className="flex items-center gap-3 py-2 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors cursor-pointer">
 									{currentlyPlaying.track.album.images[0] ? (
 										<img
-											src={currentlyPlaying.track.album.images[0].url}
-											alt={currentlyPlaying.track.album.name}
+											src={
+												currentlyPlaying.track.album
+													.images[0].url
+											}
+											alt={
+												currentlyPlaying.track.album
+													.name
+											}
 											className="w-12 h-12 object-cover"
 										/>
 									) : (
@@ -380,24 +433,39 @@ export function DashboardPage() {
 											{currentlyPlaying.track.name}
 										</p>
 										<p className="text-xs text-muted-foreground truncate">
-											{currentlyPlaying.track.artists.map(a => a.name).join(', ')}
+											{currentlyPlaying.track.artists
+												.map((a) => a.name)
+												.join(', ')}
 										</p>
 									</div>
 									{currentlyPlaying.is_playing && (
-										<img src={spotifyLogo} alt="Playing on Spotify" className="size-5 shrink-0" />
+										<img
+											src={spotifyLogo}
+											alt="Playing on Spotify"
+											className="size-5 shrink-0"
+										/>
 									)}
 								</div>
 								<div className="space-y-1">
 									<div className="h-1 bg-muted overflow-hidden">
-										<div 
+										<div
 											ref={progressBarRef}
 											className="h-full bg-foreground/50"
-											style={{ width: `${progressPercent}%` }}
+											style={{
+												width: `${progressPercent}%`,
+											}}
 										/>
 									</div>
 									<div className="flex justify-between text-xs text-muted-foreground">
-										<span>{formatDuration(displayTime)}</span>
-										<span>{formatDuration(currentlyPlaying.track.duration_ms)}</span>
+										<span>
+											{formatDuration(displayTime)}
+										</span>
+										<span>
+											{formatDuration(
+												currentlyPlaying.track
+													.duration_ms
+											)}
+										</span>
 									</div>
 								</div>
 							</div>
@@ -406,7 +474,9 @@ export function DashboardPage() {
 								<div className="w-12 h-12 bg-muted/50 flex items-center justify-center">
 									<Disc3 className="size-6" />
 								</div>
-								<p className="text-sm">Nothing playing right now</p>
+								<p className="text-sm">
+									Nothing playing right now
+								</p>
 							</div>
 						)}
 					</CardContent>
@@ -422,7 +492,10 @@ export function DashboardPage() {
 						{isLoadingRecent && !recentlyPlayed ? (
 							<div className="space-y-3">
 								{[...Array(5)].map((_, i) => (
-									<div key={i} className="flex items-center gap-3">
+									<div
+										key={i}
+										className="flex items-center gap-3"
+									>
 										<div className="w-10 h-10 bg-muted animate-pulse" />
 										<div className="flex-1 space-y-1.5">
 											<div className="h-3.5 bg-muted animate-pulse w-3/4" />
@@ -431,7 +504,8 @@ export function DashboardPage() {
 									</div>
 								))}
 							</div>
-						) : recentlyPlayed?.items && recentlyPlayed.items.length > 0 ? (
+						) : recentlyPlayed?.items &&
+						  recentlyPlayed.items.length > 0 ? (
 							<div className="space-y-1">
 								{recentlyPlayed.items.map((item) => (
 									<div
@@ -440,7 +514,10 @@ export function DashboardPage() {
 									>
 										{item.track.album.images?.[0] ? (
 											<img
-												src={item.track.album.images[0].url}
+												src={
+													item.track.album.images[0]
+														.url
+												}
 												alt={item.track.album.name}
 												className="w-10 h-10 object-cover"
 											/>
@@ -454,7 +531,9 @@ export function DashboardPage() {
 												{item.track.name}
 											</p>
 											<p className="text-xs text-muted-foreground truncate">
-												{item.track.artists.map(a => a.name).join(', ')}
+												{item.track.artists
+													.map((a) => a.name)
+													.join(', ')}
 											</p>
 										</div>
 										<span className="text-xs text-muted-foreground shrink-0">
@@ -484,7 +563,10 @@ export function DashboardPage() {
 							{isLoadingTopArtists && !topGroups ? (
 								<div className="space-y-3">
 									{[...Array(5)].map((_, i) => (
-										<div key={i} className="flex items-center gap-3">
+										<div
+											key={i}
+											className="flex items-center gap-3"
+										>
 											<div className="w-10 h-10 rounded-full bg-muted animate-pulse" />
 											<div className="flex-1 space-y-1.5">
 												<div className="h-3.5 bg-muted animate-pulse w-3/4" />
@@ -493,7 +575,8 @@ export function DashboardPage() {
 										</div>
 									))}
 								</div>
-							) : topGroups?.items && topGroups.items.length > 0 ? (
+							) : topGroups?.items &&
+							  topGroups.items.length > 0 ? (
 								<div className="space-y-1">
 									{topGroups.items.map((artist, index) => (
 										<div
@@ -519,7 +602,10 @@ export function DashboardPage() {
 													{artist.name}
 												</p>
 												<p className="text-xs text-muted-foreground">
-													{artist.play_count} plays · {formatListeningTime(artist.total_ms)}
+													{artist.play_count} plays ·{' '}
+													{formatListeningTime(
+														artist.total_ms
+													)}
 												</p>
 											</div>
 										</div>
@@ -544,7 +630,10 @@ export function DashboardPage() {
 							{isLoadingTopArtists && !topSoloArtists ? (
 								<div className="space-y-3">
 									{[...Array(5)].map((_, i) => (
-										<div key={i} className="flex items-center gap-3">
+										<div
+											key={i}
+											className="flex items-center gap-3"
+										>
 											<div className="w-10 h-10 rounded-full bg-muted animate-pulse" />
 											<div className="flex-1 space-y-1.5">
 												<div className="h-3.5 bg-muted animate-pulse w-3/4" />
@@ -553,42 +642,51 @@ export function DashboardPage() {
 										</div>
 									))}
 								</div>
-							) : topSoloArtists?.items && topSoloArtists.items.length > 0 ? (
+							) : topSoloArtists?.items &&
+							  topSoloArtists.items.length > 0 ? (
 								<div className="space-y-1">
-									{topSoloArtists.items.map((artist, index) => (
-										<div
-											key={artist.id}
-											className="flex items-center gap-3 py-2 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
-										>
-											<span className="text-xs text-muted-foreground w-4 text-right tabular-nums">
-												{index + 1}
-											</span>
-											{artist.image_url ? (
-												<img
-													src={artist.image_url}
-													alt={artist.name}
-													className="w-10 h-10 rounded-full object-cover"
-												/>
-											) : (
-												<div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-													<User className="size-4 text-muted-foreground" />
+									{topSoloArtists.items.map(
+										(artist, index) => (
+											<div
+												key={artist.id}
+												className="flex items-center gap-3 py-2 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
+											>
+												<span className="text-xs text-muted-foreground w-4 text-right tabular-nums">
+													{index + 1}
+												</span>
+												{artist.image_url ? (
+													<img
+														src={artist.image_url}
+														alt={artist.name}
+														className="w-10 h-10 rounded-full object-cover"
+													/>
+												) : (
+													<div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+														<User className="size-4 text-muted-foreground" />
+													</div>
+												)}
+												<div className="flex-1 min-w-0">
+													<p className="text-sm font-medium truncate">
+														{artist.name}
+													</p>
+													<p className="text-xs text-muted-foreground">
+														{artist.play_count}{' '}
+														plays ·{' '}
+														{formatListeningTime(
+															artist.total_ms
+														)}
+													</p>
 												</div>
-											)}
-											<div className="flex-1 min-w-0">
-												<p className="text-sm font-medium truncate">
-													{artist.name}
-												</p>
-												<p className="text-xs text-muted-foreground">
-													{artist.play_count} plays · {formatListeningTime(artist.total_ms)}
-												</p>
 											</div>
-										</div>
-									))}
+										)
+									)}
 								</div>
 							) : (
 								<div className="flex items-center gap-3 text-muted-foreground py-4">
 									<User className="size-5" />
-									<p className="text-sm">No solo artists yet</p>
+									<p className="text-sm">
+										No solo artists yet
+									</p>
 								</div>
 							)}
 						</CardContent>
