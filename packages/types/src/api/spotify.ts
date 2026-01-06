@@ -13,6 +13,17 @@ export interface SpotifyUser {
 	images?: Array<{ url: string }>
 }
 
+/** Spotify artist object from the Get Artist endpoint */
+export interface SpotifyArtist {
+	id: string
+	name: string
+	uri: string
+	images: Array<{ url: string; width: number; height: number }>
+	genres: string[]
+	popularity: number
+	followers: { total: number }
+}
+
 /** Spotify track object (shared between endpoints) */
 export interface SpotifyTrack {
 	id: string

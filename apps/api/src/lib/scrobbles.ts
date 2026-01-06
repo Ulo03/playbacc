@@ -26,6 +26,7 @@ import {
 	getRecentlyPlayedTracks,
 	getValidAccessToken,
 	calculateExpiresAt,
+	getArtist,
 	type SpotifyAccount,
 	type RecentlyPlayedItem,
 	type SpotifyTrack,
@@ -108,6 +109,7 @@ export interface ResolvedTrackMetadata {
 	artistCredits: Array<{
 		name: string
 		mbid: string | null
+		spotifyId: string | null
 		isPrimary: boolean
 		order: number
 		joinPhrase: string
@@ -351,9 +353,10 @@ function existingTrackToMetadata(
 	const spotifyAlbum = spotifyItem.track.album
 
 	const artistCredits: ResolvedTrackMetadata['artistCredits'] =
-		trackArtists.map((ta) => ({
+		trackArtists.map((ta, index) => ({
 			name: ta.artist.name,
 			mbid: ta.artist.mbid,
+			spotifyId: spotifyItem.track.artists[index]?.id ?? null,
 			isPrimary: ta.isPrimary,
 			order: ta.order,
 			joinPhrase: ta.joinPhrase,
@@ -365,6 +368,7 @@ function existingTrackToMetadata(
 			artistCredits.push({
 				name: artist.name,
 				mbid: null,
+				spotifyId: artist.id ?? null,
 				isPrimary: index === 0,
 				order: index,
 				joinPhrase:
@@ -461,9 +465,17 @@ export async function resolveTrackMetadata(
 
 	if (mbRecording?.['artist-credit']) {
 		mbRecording['artist-credit'].forEach((credit, index) => {
+			// Try to match with Spotify artist by name to get spotifyId
+			const spotifyArtist =
+				spotifyTrack.artists.find(
+					(a) =>
+						a.name.toLowerCase() ===
+						(credit.name ?? credit.artist.name ?? '').toLowerCase()
+				) ?? spotifyTrack.artists[index]
 			artistCredits.push({
 				name: credit.name ?? credit.artist.name ?? 'Unknown',
 				mbid: credit.artist.id,
+				spotifyId: spotifyArtist?.id ?? null,
 				isPrimary: index === 0,
 				order: index,
 				joinPhrase: credit.joinphrase ?? '',
@@ -475,6 +487,7 @@ export async function resolveTrackMetadata(
 			artistCredits.push({
 				name: artist.name,
 				mbid: null,
+				spotifyId: artist.id ?? null,
 				isPrimary: index === 0,
 				order: index,
 				joinPhrase: index < spotifyTrack.artists.length - 1 ? ', ' : '',
@@ -619,9 +632,17 @@ export async function resolveTrackMetadataFromSpotify(
 
 	if (mbRecording?.['artist-credit']) {
 		mbRecording['artist-credit'].forEach((credit, index) => {
+			// Try to match with Spotify artist by name to get spotifyId
+			const spotifyArtist =
+				spotifyTrack.artists.find(
+					(a) =>
+						a.name.toLowerCase() ===
+						(credit.name ?? credit.artist.name ?? '').toLowerCase()
+				) ?? spotifyTrack.artists[index]
 			artistCredits.push({
 				name: credit.name ?? credit.artist.name ?? 'Unknown',
 				mbid: credit.artist.id,
+				spotifyId: spotifyArtist?.id ?? null,
 				isPrimary: index === 0,
 				order: index,
 				joinPhrase: credit.joinphrase ?? '',
@@ -633,6 +654,7 @@ export async function resolveTrackMetadataFromSpotify(
 			artistCredits.push({
 				name: artist.name,
 				mbid: null,
+				spotifyId: artist.id ?? null,
 				isPrimary: index === 0,
 				order: index,
 				joinPhrase: index < spotifyTrack.artists.length - 1 ? ', ' : '',
@@ -715,14 +737,20 @@ function triggerAutoSync(mbid: string): void {
  * - A new artist is created with an MBID
  * - An existing artist (by name) gets an MBID attached for the first time
  *
+ * On new artist creation, fetches the profile image from Spotify if spotifyId is provided.
+ *
  * @param name - Artist name
  * @param mbid - MusicBrainz artist ID (optional)
+ * @param spotifyId - Spotify artist ID (optional, for fetching image on creation)
+ * @param accessToken - Spotify access token (optional, needed if spotifyId is provided)
  * @param tx - Optional transaction client (defaults to db)
  * @returns Artist database ID
  */
 async function upsertArtist(
 	name: string,
 	mbid: string | null,
+	spotifyId: string | null = null,
+	accessToken: string | null = null,
 	tx: DbClient = db
 ): Promise<string> {
 	// Try to find existing artist by MBID first
@@ -753,10 +781,28 @@ async function upsertArtist(
 		return existingByName.id
 	}
 
+	// Fetch artist image from Spotify on new artist creation only
+	let imageUrl: string | null = null
+	if (spotifyId && accessToken) {
+		try {
+			const spotifyArtist = await getArtist(accessToken, spotifyId)
+			// Get the first (largest) image if available
+			if (spotifyArtist?.images && spotifyArtist.images.length > 0) {
+				imageUrl = spotifyArtist.images[0].url
+			}
+		} catch (error) {
+			// Don't fail artist creation if image fetch fails
+			console.warn(
+				`[Artist] Failed to fetch Spotify image for ${name}:`,
+				error
+			)
+		}
+	}
+
 	// Create new artist
 	const [newArtist] = await tx
 		.insert(artists)
-		.values({ name, mbid })
+		.values({ name, mbid, image_url: imageUrl })
 		.returning()
 
 	// Trigger auto-sync for new artist with MBID
@@ -885,15 +931,23 @@ async function upsertTrack(
  *
  * @param trackId - Track database ID
  * @param artistCredits - Array of artist credit info
+ * @param accessToken - Spotify access token (for fetching artist images)
  * @param tx - Optional transaction client (defaults to db)
  */
 async function linkTrackArtists(
 	trackId: string,
 	artistCredits: ResolvedTrackMetadata['artistCredits'],
+	accessToken: string | null,
 	tx: DbClient = db
 ): Promise<void> {
 	for (const credit of artistCredits) {
-		const artistId = await upsertArtist(credit.name, credit.mbid, tx)
+		const artistId = await upsertArtist(
+			credit.name,
+			credit.mbid,
+			credit.spotifyId,
+			accessToken,
+			tx
+		)
 
 		// Check if link already exists
 		const existing = await tx.query.track_artists.findFirst({
@@ -990,12 +1044,14 @@ async function hasExistingScrobbleInWindow(
  * @param userId - User database ID
  * @param event - Processed play event
  * @param metadata - Resolved track metadata
+ * @param accessToken - Spotify access token (for fetching artist images on new artist creation)
  * @returns True if scrobble was inserted, false if duplicate
  */
 export async function persistScrobble(
 	userId: string,
 	event: ProcessedPlayEvent,
-	metadata: ResolvedTrackMetadata
+	metadata: ResolvedTrackMetadata,
+	accessToken: string | null = null
 ): Promise<boolean> {
 	try {
 		return await db.transaction(async (tx) => {
@@ -1014,11 +1070,22 @@ export async function persistScrobble(
 			if (isDuplicate) {
 				// Still link track to artists/albums even if scrobble is duplicate
 				// (in case they weren't linked before)
-				await linkTrackArtists(trackId, metadata.artistCredits, tx)
+				await linkTrackArtists(
+					trackId,
+					metadata.artistCredits,
+					accessToken,
+					tx
+				)
 				if (metadata.album) {
+					// Find primary artist spotifyId from artistCredits
+					const primaryCredit = metadata.artistCredits.find(
+						(c) => c.isPrimary
+					)
 					const primaryArtistId = await upsertArtist(
 						metadata.primaryArtist.name,
 						metadata.primaryArtist.mbid,
+						primaryCredit?.spotifyId ?? null,
+						accessToken,
 						tx
 					)
 					const albumId = await upsertAlbum(
@@ -1035,14 +1102,25 @@ export async function persistScrobble(
 			}
 
 			// Link track to artists
-			await linkTrackArtists(trackId, metadata.artistCredits, tx)
+			await linkTrackArtists(
+				trackId,
+				metadata.artistCredits,
+				accessToken,
+				tx
+			)
 
 			// Upsert and link album if present
 			let albumId: string | null = null
 			if (metadata.album) {
+				// Find primary artist spotifyId from artistCredits
+				const primaryCredit = metadata.artistCredits.find(
+					(c) => c.isPrimary
+				)
 				const primaryArtistId = await upsertArtist(
 					metadata.primaryArtist.name,
 					metadata.primaryArtist.mbid,
+					primaryCredit?.spotifyId ?? null,
+					accessToken,
 					tx
 				)
 				albumId = await upsertAlbum(
@@ -1096,6 +1174,7 @@ export async function persistScrobble(
  * @param durationMs - How long the track was played (accumulated)
  * @param metadata - Resolved track metadata
  * @param skipped - Whether the track was skipped (played enough to scrobble but not to completion)
+ * @param accessToken - Spotify access token (for fetching artist images on new artist creation)
  * @returns True if scrobble was inserted, false if duplicate
  */
 export async function persistScrobbleFromMetadata(
@@ -1103,7 +1182,8 @@ export async function persistScrobbleFromMetadata(
 	playedAt: Date,
 	durationMs: number,
 	metadata: ResolvedTrackMetadata,
-	skipped: boolean = false
+	skipped: boolean = false,
+	accessToken: string | null = null
 ): Promise<boolean> {
 	try {
 		return await db.transaction(async (tx) => {
@@ -1111,14 +1191,25 @@ export async function persistScrobbleFromMetadata(
 			const trackId = await upsertTrack(metadata, tx)
 
 			// Link track to artists
-			await linkTrackArtists(trackId, metadata.artistCredits, tx)
+			await linkTrackArtists(
+				trackId,
+				metadata.artistCredits,
+				accessToken,
+				tx
+			)
 
 			// Upsert and link album if present
 			let albumId: string | null = null
 			if (metadata.album) {
+				// Find primary artist spotifyId from artistCredits
+				const primaryCredit = metadata.artistCredits.find(
+					(c) => c.isPrimary
+				)
 				const primaryArtistId = await upsertArtist(
 					metadata.primaryArtist.name,
 					metadata.primaryArtist.mbid,
+					primaryCredit?.spotifyId ?? null,
+					accessToken,
 					tx
 				)
 				albumId = await upsertAlbum(
@@ -1252,7 +1343,8 @@ export async function processAccountScrobbles(
 				const inserted = await persistScrobble(
 					account.user_id,
 					event,
-					metadata
+					metadata,
+					accessToken
 				)
 
 				if (inserted) {

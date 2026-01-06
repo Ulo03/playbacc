@@ -323,6 +323,7 @@ function normalizeGender(
 /**
  * Ensures an artist exists in the database, creating if needed.
  * Also updates metadata from MusicBrainz if available.
+ * Uses upsert pattern to handle race conditions.
  *
  * @param mbid - MusicBrainz artist ID
  * @param name - Artist name
@@ -355,7 +356,7 @@ async function ensureArtistByMbid(
 		}
 	}
 
-	// Try to find by MBID
+	// Try to find by MBID first
 	const existing = await db.query.artists.findFirst({
 		where: (a, { eq }) => eq(a.mbid, mbid),
 	})
@@ -370,7 +371,7 @@ async function ensureArtistByMbid(
 		return existing.id
 	}
 
-	// Try to find by name (case-insensitive would be better, but keeping simple)
+	// Try to find by name and update with MBID
 	const existingByName = await db.query.artists.findFirst({
 		where: (a, { eq }) => eq(a.name, name),
 	})
@@ -383,13 +384,19 @@ async function ensureArtistByMbid(
 		return existingByName.id
 	}
 
-	// Create new artist with all metadata
-	const [newArtist] = await db
+	// Create new artist with upsert to handle race conditions
+	// If another process inserted with the same MBID, update instead
+	// Note: onConflictDoUpdate requires at least one field to set, so we always include name
+	const [upsertedArtist] = await db
 		.insert(artists)
 		.values({ name, mbid, ...metadataUpdates })
+		.onConflictDoUpdate({
+			target: artists.mbid,
+			set: { name, ...metadataUpdates },
+		})
 		.returning()
 
-	return newArtist.id
+	return upsertedArtist.id
 }
 
 /**

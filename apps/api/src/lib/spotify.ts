@@ -8,6 +8,7 @@
 import type {
 	CurrentlyPlayingResponse,
 	RecentlyPlayedResponse,
+	SpotifyArtist,
 	SpotifyUser,
 	TokenResponse,
 } from '@playbacc/types/api/spotify'
@@ -16,6 +17,7 @@ export type {
 	CurrentlyPlayingResponse,
 	RecentlyPlayedItem,
 	RecentlyPlayedResponse,
+	SpotifyArtist,
 	SpotifyTrack,
 	SpotifyUser,
 	TokenResponse,
@@ -311,4 +313,36 @@ export const getCurrentlyPlaying = async (
 	}
 
 	return data
+}
+
+/**
+ * Gets artist details from Spotify including images.
+ *
+ * @param accessToken - Valid access token
+ * @param artistId - Spotify artist ID
+ * @returns Artist details including images, or null if not found
+ */
+export const getArtist = async (
+	accessToken: string,
+	artistId: string
+): Promise<SpotifyArtist | null> => {
+	const response = await fetch(
+		`${SPOTIFY_API_BASE_URL}/artists/${artistId}`,
+		{
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+			},
+		}
+	)
+
+	if (response.status === 404) {
+		return null
+	}
+
+	if (!response.ok) {
+		const errorText = await response.text()
+		throw new Error(`Failed to get artist: ${errorText}`)
+	}
+
+	return response.json() as Promise<SpotifyArtist>
 }
