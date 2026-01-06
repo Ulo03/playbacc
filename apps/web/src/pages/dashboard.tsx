@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Link } from '@tanstack/react-router'
 import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Palette, Disc3, Users, User, Clock, Music } from 'lucide-react'
+import { ThemeSelectorModal } from '@/components/theme-selector-modal'
+import { Disc3, Users, User, Clock, Music } from 'lucide-react'
 import spotifyLogo from '@/assets/spotify.svg'
 
 interface CurrentlyPlayingTrack {
@@ -341,11 +341,7 @@ export function DashboardPage() {
 					</div>
 
 					<div className="flex items-center gap-3">
-						<Button variant="ghost" size="icon" asChild>
-							<Link to="/themes">
-								<Palette className="size-4" />
-							</Link>
-						</Button>
+						<ThemeSelectorModal />
 
 						<div className="flex items-center gap-2 pl-3 border-l border-border">
 							{user?.image_url ? (
