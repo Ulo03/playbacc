@@ -10,7 +10,7 @@
  * @module scrobbles
  */
 
-import { db } from '../db'
+import { db, type DbClient } from '../db'
 import { eq, and } from 'drizzle-orm'
 import {
 	accounts,
@@ -717,15 +717,17 @@ function triggerAutoSync(mbid: string): void {
  *
  * @param name - Artist name
  * @param mbid - MusicBrainz artist ID (optional)
+ * @param tx - Optional transaction client (defaults to db)
  * @returns Artist database ID
  */
 async function upsertArtist(
 	name: string,
-	mbid: string | null
+	mbid: string | null,
+	tx: DbClient = db
 ): Promise<string> {
 	// Try to find existing artist by MBID first
 	if (mbid) {
-		const existing = await db.query.artists.findFirst({
+		const existing = await tx.query.artists.findFirst({
 			where: (artists, { eq }) => eq(artists.mbid, mbid),
 		})
 		if (existing) {
@@ -734,13 +736,13 @@ async function upsertArtist(
 	}
 
 	// Try to find by name if no MBID match
-	const existingByName = await db.query.artists.findFirst({
+	const existingByName = await tx.query.artists.findFirst({
 		where: (artists, { eq }) => eq(artists.name, name),
 	})
 	if (existingByName) {
 		// Update with MBID if we now have one
 		if (mbid && !existingByName.mbid) {
-			await db
+			await tx
 				.update(artists)
 				.set({ mbid })
 				.where(eq(artists.id, existingByName.id))
@@ -752,7 +754,7 @@ async function upsertArtist(
 	}
 
 	// Create new artist
-	const [newArtist] = await db
+	const [newArtist] = await tx
 		.insert(artists)
 		.values({ name, mbid })
 		.returning()
@@ -773,6 +775,7 @@ async function upsertArtist(
  * @param mbid - MusicBrainz release ID (optional)
  * @param releaseDate - Release date string (optional)
  * @param imageUrl - Album cover URL (optional)
+ * @param tx - Optional transaction client (defaults to db)
  * @returns Album database ID
  */
 async function upsertAlbum(
@@ -780,11 +783,12 @@ async function upsertAlbum(
 	artistId: string,
 	mbid: string | null,
 	releaseDate: string | null,
-	imageUrl: string | null
+	imageUrl: string | null,
+	tx: DbClient = db
 ): Promise<string> {
 	// Try to find existing album by MBID
 	if (mbid) {
-		const existing = await db.query.albums.findFirst({
+		const existing = await tx.query.albums.findFirst({
 			where: (albums, { eq }) => eq(albums.mbid, mbid),
 		})
 		if (existing) {
@@ -793,14 +797,14 @@ async function upsertAlbum(
 	}
 
 	// Try to find by title and artist
-	const existingByTitle = await db.query.albums.findFirst({
+	const existingByTitle = await tx.query.albums.findFirst({
 		where: (albums, { eq, and }) =>
 			and(eq(albums.title, title), eq(albums.artist_id, artistId)),
 	})
 	if (existingByTitle) {
 		// Update with MBID if we now have one
 		if (mbid && !existingByTitle.mbid) {
-			await db
+			await tx
 				.update(albums)
 				.set({ mbid })
 				.where(eq(albums.id, existingByTitle.id))
@@ -809,7 +813,7 @@ async function upsertAlbum(
 	}
 
 	// Create new album
-	const [newAlbum] = await db
+	const [newAlbum] = await tx
 		.insert(albums)
 		.values({
 			title,
@@ -827,18 +831,22 @@ async function upsertAlbum(
  * Upserts a track into the database
  *
  * @param metadata - Resolved track metadata
+ * @param tx - Optional transaction client (defaults to db)
  * @returns Track database ID
  */
-async function upsertTrack(metadata: ResolvedTrackMetadata): Promise<string> {
+async function upsertTrack(
+	metadata: ResolvedTrackMetadata,
+	tx: DbClient = db
+): Promise<string> {
 	// Try to find existing track by ISRC (most reliable identifier)
 	if (metadata.isrc) {
-		const existing = await db.query.tracks.findFirst({
+		const existing = await tx.query.tracks.findFirst({
 			where: (tracks, { eq }) => eq(tracks.isrc, metadata.isrc!),
 		})
 		if (existing) {
 			// Update with MBID if we now have one
 			if (metadata.mbid && !existing.mbid) {
-				await db
+				await tx
 					.update(tracks)
 					.set({ mbid: metadata.mbid })
 					.where(eq(tracks.id, existing.id))
@@ -849,7 +857,7 @@ async function upsertTrack(metadata: ResolvedTrackMetadata): Promise<string> {
 
 	// Try to find by MBID
 	if (metadata.mbid) {
-		const existing = await db.query.tracks.findFirst({
+		const existing = await tx.query.tracks.findFirst({
 			where: (tracks, { eq }) => eq(tracks.mbid, metadata.mbid!),
 		})
 		if (existing) {
@@ -858,7 +866,7 @@ async function upsertTrack(metadata: ResolvedTrackMetadata): Promise<string> {
 	}
 
 	// Create new track
-	const [newTrack] = await db
+	const [newTrack] = await tx
 		.insert(tracks)
 		.values({
 			title: metadata.title,
@@ -877,22 +885,24 @@ async function upsertTrack(metadata: ResolvedTrackMetadata): Promise<string> {
  *
  * @param trackId - Track database ID
  * @param artistCredits - Array of artist credit info
+ * @param tx - Optional transaction client (defaults to db)
  */
 async function linkTrackArtists(
 	trackId: string,
-	artistCredits: ResolvedTrackMetadata['artistCredits']
+	artistCredits: ResolvedTrackMetadata['artistCredits'],
+	tx: DbClient = db
 ): Promise<void> {
 	for (const credit of artistCredits) {
-		const artistId = await upsertArtist(credit.name, credit.mbid)
+		const artistId = await upsertArtist(credit.name, credit.mbid, tx)
 
 		// Check if link already exists
-		const existing = await db.query.track_artists.findFirst({
+		const existing = await tx.query.track_artists.findFirst({
 			where: (ta, { eq, and }) =>
 				and(eq(ta.track_id, trackId), eq(ta.artist_id, artistId)),
 		})
 
 		if (!existing) {
-			await db.insert(track_artists).values({
+			await tx.insert(track_artists).values({
 				track_id: trackId,
 				artist_id: artistId,
 				is_primary: credit.isPrimary,
@@ -908,16 +918,21 @@ async function linkTrackArtists(
  *
  * @param trackId - Track database ID
  * @param albumId - Album database ID
+ * @param tx - Optional transaction client (defaults to db)
  */
-async function linkTrackAlbum(trackId: string, albumId: string): Promise<void> {
+async function linkTrackAlbum(
+	trackId: string,
+	albumId: string,
+	tx: DbClient = db
+): Promise<void> {
 	// Check if link already exists
-	const existing = await db.query.track_albums.findFirst({
+	const existing = await tx.query.track_albums.findFirst({
 		where: (ta, { eq, and }) =>
 			and(eq(ta.track_id, trackId), eq(ta.album_id, albumId)),
 	})
 
 	if (!existing) {
-		await db.insert(track_albums).values({
+		await tx.insert(track_albums).values({
 			track_id: trackId,
 			album_id: albumId,
 		})
@@ -943,17 +958,19 @@ const DEDUPE_WINDOW_MS = 10 * 60 * 1000 // 10 minutes
  * @param userId - User database ID
  * @param trackId - Track database ID
  * @param playedAt - Timestamp to check around
+ * @param tx - Optional transaction client (defaults to db)
  * @returns True if a similar scrobble exists
  */
 async function hasExistingScrobbleInWindow(
 	userId: string,
 	trackId: string,
-	playedAt: Date
+	playedAt: Date,
+	tx: DbClient = db
 ): Promise<boolean> {
 	const windowStart = new Date(playedAt.getTime() - DEDUPE_WINDOW_MS)
 	const windowEnd = new Date(playedAt.getTime() + DEDUPE_WINDOW_MS)
 
-	const existing = await db.query.scrobbles.findFirst({
+	const existing = await tx.query.scrobbles.findFirst({
 		where: (s, { eq, and, between }) =>
 			and(
 				eq(s.user_id, userId),
@@ -967,6 +984,8 @@ async function hasExistingScrobbleInWindow(
 
 /**
  * Persists a scrobble and all related entities to the database.
+ * Uses a transaction to ensure atomicity - either all operations succeed,
+ * or they all roll back to prevent orphaned tracks/artists without links.
  *
  * @param userId - User database ID
  * @param event - Processed play event
@@ -979,80 +998,87 @@ export async function persistScrobble(
 	metadata: ResolvedTrackMetadata
 ): Promise<boolean> {
 	try {
-		// Upsert track first so we have the trackId for dedupe check
-		const trackId = await upsertTrack(metadata)
+		return await db.transaction(async (tx) => {
+			// Upsert track first so we have the trackId for dedupe check
+			const trackId = await upsertTrack(metadata, tx)
 
-		// Check for existing scrobble in dedupe window
-		// This prevents duplicates when currently-playing already scrobbled this track
-		const isDuplicate = await hasExistingScrobbleInWindow(
-			userId,
-			trackId,
-			event.playedAt
-		)
+			// Check for existing scrobble in dedupe window
+			// This prevents duplicates when currently-playing already scrobbled this track
+			const isDuplicate = await hasExistingScrobbleInWindow(
+				userId,
+				trackId,
+				event.playedAt,
+				tx
+			)
 
-		if (isDuplicate) {
-			// Still link track to artists/albums even if scrobble is duplicate
-			// (in case they weren't linked before)
-			await linkTrackArtists(trackId, metadata.artistCredits)
+			if (isDuplicate) {
+				// Still link track to artists/albums even if scrobble is duplicate
+				// (in case they weren't linked before)
+				await linkTrackArtists(trackId, metadata.artistCredits, tx)
+				if (metadata.album) {
+					const primaryArtistId = await upsertArtist(
+						metadata.primaryArtist.name,
+						metadata.primaryArtist.mbid,
+						tx
+					)
+					const albumId = await upsertAlbum(
+						metadata.album.title,
+						primaryArtistId,
+						metadata.album.mbid,
+						metadata.album.releaseDate,
+						metadata.album.imageUrl,
+						tx
+					)
+					await linkTrackAlbum(trackId, albumId, tx)
+				}
+				return false // Already scrobbled
+			}
+
+			// Link track to artists
+			await linkTrackArtists(trackId, metadata.artistCredits, tx)
+
+			// Upsert and link album if present
+			let albumId: string | null = null
 			if (metadata.album) {
 				const primaryArtistId = await upsertArtist(
 					metadata.primaryArtist.name,
-					metadata.primaryArtist.mbid
+					metadata.primaryArtist.mbid,
+					tx
 				)
-				const albumId = await upsertAlbum(
+				albumId = await upsertAlbum(
 					metadata.album.title,
 					primaryArtistId,
 					metadata.album.mbid,
 					metadata.album.releaseDate,
-					metadata.album.imageUrl
+					metadata.album.imageUrl,
+					tx
 				)
-				await linkTrackAlbum(trackId, albumId)
+				await linkTrackAlbum(trackId, albumId, tx)
 			}
-			return false // Already scrobbled
-		}
 
-		// Link track to artists
-		await linkTrackArtists(trackId, metadata.artistCredits)
+			// Insert scrobble (with conflict ignore for idempotency)
+			const result = await tx
+				.insert(scrobbles)
+				.values({
+					user_id: userId,
+					track_id: trackId,
+					album_id: albumId,
+					played_at: event.playedAt,
+					played_duration_ms: event.estimatedDurationMs,
+					skipped: false,
+					provider: 'spotify',
+				})
+				.onConflictDoNothing({
+					target: [
+						scrobbles.user_id,
+						scrobbles.track_id,
+						scrobbles.played_at,
+					],
+				})
+				.returning()
 
-		// Upsert and link album if present
-		let albumId: string | null = null
-		if (metadata.album) {
-			const primaryArtistId = await upsertArtist(
-				metadata.primaryArtist.name,
-				metadata.primaryArtist.mbid
-			)
-			albumId = await upsertAlbum(
-				metadata.album.title,
-				primaryArtistId,
-				metadata.album.mbid,
-				metadata.album.releaseDate,
-				metadata.album.imageUrl
-			)
-			await linkTrackAlbum(trackId, albumId)
-		}
-
-		// Insert scrobble (with conflict ignore for idempotency)
-		const result = await db
-			.insert(scrobbles)
-			.values({
-				user_id: userId,
-				track_id: trackId,
-				album_id: albumId,
-				played_at: event.playedAt,
-				played_duration_ms: event.estimatedDurationMs,
-				skipped: false,
-				provider: 'spotify',
-			})
-			.onConflictDoNothing({
-				target: [
-					scrobbles.user_id,
-					scrobbles.track_id,
-					scrobbles.played_at,
-				],
-			})
-			.returning()
-
-		return result.length > 0
+			return result.length > 0
+		})
 	} catch (error) {
 		console.error('[Scrobble] Error persisting scrobble:', error)
 		return false
@@ -1062,6 +1088,8 @@ export async function persistScrobble(
 /**
  * Persists a scrobble from already-resolved metadata.
  * Used by the currently-playing flow where we have metadata but not a ProcessedPlayEvent.
+ * Uses a transaction to ensure atomicity - either all operations succeed,
+ * or they all roll back to prevent orphaned tracks/artists without links.
  *
  * @param userId - User database ID
  * @param playedAt - When the track started playing
@@ -1078,51 +1106,55 @@ export async function persistScrobbleFromMetadata(
 	skipped: boolean = false
 ): Promise<boolean> {
 	try {
-		// Upsert track
-		const trackId = await upsertTrack(metadata)
+		return await db.transaction(async (tx) => {
+			// Upsert track
+			const trackId = await upsertTrack(metadata, tx)
 
-		// Link track to artists
-		await linkTrackArtists(trackId, metadata.artistCredits)
+			// Link track to artists
+			await linkTrackArtists(trackId, metadata.artistCredits, tx)
 
-		// Upsert and link album if present
-		let albumId: string | null = null
-		if (metadata.album) {
-			const primaryArtistId = await upsertArtist(
-				metadata.primaryArtist.name,
-				metadata.primaryArtist.mbid
-			)
-			albumId = await upsertAlbum(
-				metadata.album.title,
-				primaryArtistId,
-				metadata.album.mbid,
-				metadata.album.releaseDate,
-				metadata.album.imageUrl
-			)
-			await linkTrackAlbum(trackId, albumId)
-		}
+			// Upsert and link album if present
+			let albumId: string | null = null
+			if (metadata.album) {
+				const primaryArtistId = await upsertArtist(
+					metadata.primaryArtist.name,
+					metadata.primaryArtist.mbid,
+					tx
+				)
+				albumId = await upsertAlbum(
+					metadata.album.title,
+					primaryArtistId,
+					metadata.album.mbid,
+					metadata.album.releaseDate,
+					metadata.album.imageUrl,
+					tx
+				)
+				await linkTrackAlbum(trackId, albumId, tx)
+			}
 
-		// Insert scrobble (with conflict ignore for idempotency)
-		const result = await db
-			.insert(scrobbles)
-			.values({
-				user_id: userId,
-				track_id: trackId,
-				album_id: albumId,
-				played_at: playedAt, // Pass Date object - Drizzle handles conversion
-				played_duration_ms: durationMs,
-				skipped,
-				provider: 'spotify',
-			})
-			.onConflictDoNothing({
-				target: [
-					scrobbles.user_id,
-					scrobbles.track_id,
-					scrobbles.played_at,
-				],
-			})
-			.returning()
+			// Insert scrobble (with conflict ignore for idempotency)
+			const result = await tx
+				.insert(scrobbles)
+				.values({
+					user_id: userId,
+					track_id: trackId,
+					album_id: albumId,
+					played_at: playedAt, // Pass Date object - Drizzle handles conversion
+					played_duration_ms: durationMs,
+					skipped,
+					provider: 'spotify',
+				})
+				.onConflictDoNothing({
+					target: [
+						scrobbles.user_id,
+						scrobbles.track_id,
+						scrobbles.played_at,
+					],
+				})
+				.returning()
 
-		return result.length > 0
+			return result.length > 0
+		})
 	} catch (error) {
 		console.error(
 			'[Scrobble] Error persisting scrobble from metadata:',
