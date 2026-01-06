@@ -236,12 +236,14 @@ function isSkipped(accumulatedMs: number, trackDurationMs: number): boolean {
  * @param userId - User database ID
  * @param session - The session to finalize (must have track_metadata)
  * @param mbCache - MusicBrainz cache for metadata resolution
+ * @param accessToken - Spotify access token (for fetching artist images on new artist creation)
  * @returns True if a scrobble was created
  */
 export async function finalizeSession(
 	userId: string,
 	session: PlaybackSession,
-	mbCache: MusicBrainzCache
+	mbCache: MusicBrainzCache,
+	accessToken: string | null = null
 ): Promise<boolean> {
 	// Check if already scrobbled (prevents double-scrobble on pause/resume)
 	if (session.scrobbled) {
@@ -319,7 +321,8 @@ export async function finalizeSession(
 			playedAt,
 			effectiveAccumulatedMs,
 			metadata,
-			skipped
+			skipped,
+			accessToken
 		)
 
 		if (inserted) {
@@ -410,7 +413,8 @@ export async function processCurrentlyPlaying(
 					result.scrobbled = await finalizeSession(
 						account.user_id,
 						session,
-						mbCache
+						mbCache,
+						accessToken
 					)
 					await clearPlaybackSession(account.user_id)
 				}
@@ -480,7 +484,8 @@ export async function processCurrentlyPlaying(
 					result.scrobbled = await finalizeSession(
 						account.user_id,
 						session,
-						mbCache
+						mbCache,
+						accessToken
 					)
 
 					// Start fresh session for the new loop
@@ -535,7 +540,8 @@ export async function processCurrentlyPlaying(
 			result.scrobbled = await finalizeSession(
 				account.user_id,
 				session,
-				mbCache
+				mbCache,
+				accessToken
 			)
 		}
 

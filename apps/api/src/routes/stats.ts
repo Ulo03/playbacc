@@ -9,12 +9,9 @@ import { Hono } from 'hono'
 import { authenticate } from '../middleware/auth'
 import { db } from '../db'
 import { sql } from 'drizzle-orm'
+import type { AppVariables } from '../types'
 
-interface User {
-	id: string
-}
-
-const stats = new Hono()
+const stats = new Hono<{ Variables: AppVariables }>()
 
 // Apply authentication to all routes
 stats.use('*', authenticate)
@@ -25,7 +22,7 @@ stats.use('*', authenticate)
  * Returns the user's top 5 groups (bands) based on scrobble count.
  */
 stats.get('/top-groups', async (ctx) => {
-	const user = ctx.get('user') as User
+	const user = ctx.get('user')
 	const userId = user.id
 
 	try {
@@ -73,7 +70,7 @@ stats.get('/top-groups', async (ctx) => {
  * Returns the user's top 5 solo artists (not part of any group) based on scrobble count.
  */
 stats.get('/top-solo-artists', async (ctx) => {
-	const user = ctx.get('user') as User
+	const user = ctx.get('user')
 	const userId = user.id
 
 	try {
@@ -119,4 +116,3 @@ stats.get('/top-solo-artists', async (ctx) => {
 })
 
 export default stats
-
