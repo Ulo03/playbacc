@@ -19,3 +19,7 @@ const client = postgres(connectionString, {
 export const db = drizzle(client, {
 	schema: schema,
 })
+
+// Export transaction type for use in functions that need to accept a transaction
+export type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0]
+export type DbClient = typeof db | DbTransaction
