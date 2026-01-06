@@ -271,19 +271,23 @@ export async function finalizeSession(
 		return false
 	}
 
+	// Use current time as played_at (when scrobble took place / track finished)
+	// This matches Spotify's recently-played API behavior where played_at is when the track finished
+	const playedAt = new Date()
+
 	try {
-		// Check if we already have this scrobble in DB (dedupe by user_id, track, started_at)
-		// We use started_at as played_at for stable identity
+		// Check if we already have this scrobble in DB (dedupe by user_id, provider, and time window)
+		// We check around started_at since that's the stable identifier for this play session
 		const existingScrobble = await db.query.scrobbles.findFirst({
 			where: (s, { eq, and, between }) =>
 				and(
 					eq(s.user_id, userId),
 					eq(s.provider, 'spotify'),
-					// Check within a small window around started_at
+					// Check within a window that covers from started_at to playedAt (+ buffer)
 					between(
 						s.played_at,
 						new Date(session.started_at.getTime() - 5000),
-						new Date(session.started_at.getTime() + 5000)
+						new Date(playedAt.getTime() + 5000)
 					)
 				),
 		})
@@ -312,7 +316,7 @@ export async function finalizeSession(
 
 		const inserted = await persistScrobbleFromMetadata(
 			userId,
-			session.started_at,
+			playedAt,
 			effectiveAccumulatedMs,
 			metadata,
 			skipped
