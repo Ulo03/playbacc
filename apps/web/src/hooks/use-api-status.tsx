@@ -57,28 +57,15 @@ export function ApiStatusProvider({ children }: { children: ReactNode }) {
 		// Initial check
 		checkConnection()
 
-		// Set up polling with dynamic interval
-		const startPolling = (interval: number) => {
-			if (intervalRef.current) {
-				clearInterval(intervalRef.current)
-			}
-			intervalRef.current = window.setInterval(async () => {
-				const connected = await checkConnection()
-				// Adjust interval if connection status changed
-				const newInterval = connected
-					? HEALTH_CHECK_INTERVAL_CONNECTED
-					: HEALTH_CHECK_INTERVAL
-				if (
-					(connected && interval !== HEALTH_CHECK_INTERVAL_CONNECTED) ||
-					(!connected && interval !== HEALTH_CHECK_INTERVAL)
-				) {
-					startPolling(newInterval)
-				}
-			}, interval)
-		}
-
-		// Start with appropriate interval based on initial assumed state
-		startPolling(HEALTH_CHECK_INTERVAL_CONNECTED)
+		// Use simple polling - interval adjusts based on current connection state
+		intervalRef.current = window.setInterval(
+			() => {
+				checkConnection()
+			},
+			isConnectedRef.current
+				? HEALTH_CHECK_INTERVAL_CONNECTED
+				: HEALTH_CHECK_INTERVAL
+		)
 
 		// Check when page becomes visible
 		const handleVisibilityChange = () => {
@@ -104,11 +91,14 @@ export function ApiStatusProvider({ children }: { children: ReactNode }) {
 			if (intervalRef.current) {
 				clearInterval(intervalRef.current)
 			}
-			document.removeEventListener('visibilitychange', handleVisibilityChange)
+			document.removeEventListener(
+				'visibilitychange',
+				handleVisibilityChange
+			)
 			window.removeEventListener('online', handleOnline)
 			window.removeEventListener('offline', handleOffline)
 		}
-	}, [checkConnection])
+	}, [checkConnection, isConnected])
 
 	return (
 		<ApiStatusContext.Provider value={{ isConnected, isChecking }}>
