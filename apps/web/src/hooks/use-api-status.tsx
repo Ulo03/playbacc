@@ -22,13 +22,7 @@ const ApiStatusContext = createContext<ApiStatusContextValue | null>(null)
 export function ApiStatusProvider({ children }: { children: ReactNode }) {
 	const [isConnected, setIsConnected] = useState(true)
 	const [isChecking, setIsChecking] = useState(true)
-	const intervalRef = useRef<number | null>(null)
-	const isConnectedRef = useRef(isConnected)
-
-	// Keep ref in sync with state
-	useEffect(() => {
-		isConnectedRef.current = isConnected
-	}, [isConnected])
+	const timeoutRef = useRef<number | null>(null)
 
 	const checkConnection = useCallback(async () => {
 		try {
@@ -53,34 +47,41 @@ export function ApiStatusProvider({ children }: { children: ReactNode }) {
 		}
 	}, [])
 
-	useEffect(() => {
-		// Initial check
-		checkConnection()
-
-		// Use simple polling - interval adjusts based on current connection state
-		intervalRef.current = window.setInterval(
-			() => {
-				checkConnection()
-			},
-			isConnectedRef.current
+	const scheduleNextCheck = useCallback(
+		(connected: boolean) => {
+			if (timeoutRef.current) {
+				clearTimeout(timeoutRef.current)
+			}
+			const interval = connected
 				? HEALTH_CHECK_INTERVAL_CONNECTED
 				: HEALTH_CHECK_INTERVAL
-		)
+			timeoutRef.current = window.setTimeout(async () => {
+				const result = await checkConnection()
+				scheduleNextCheck(result)
+			}, interval)
+		},
+		[checkConnection]
+	)
+
+	useEffect(() => {
+		// Initial check and start polling
+		checkConnection().then(scheduleNextCheck)
 
 		// Check when page becomes visible
 		const handleVisibilityChange = () => {
 			if (document.visibilityState === 'visible') {
-				checkConnection()
+				checkConnection().then(scheduleNextCheck)
 			}
 		}
 
 		// Check when coming back online
 		const handleOnline = () => {
-			checkConnection()
+			checkConnection().then(scheduleNextCheck)
 		}
 
 		const handleOffline = () => {
 			setIsConnected(false)
+			scheduleNextCheck(false)
 		}
 
 		document.addEventListener('visibilitychange', handleVisibilityChange)
@@ -88,8 +89,8 @@ export function ApiStatusProvider({ children }: { children: ReactNode }) {
 		window.addEventListener('offline', handleOffline)
 
 		return () => {
-			if (intervalRef.current) {
-				clearInterval(intervalRef.current)
+			if (timeoutRef.current) {
+				clearTimeout(timeoutRef.current)
 			}
 			document.removeEventListener(
 				'visibilitychange',
@@ -98,7 +99,7 @@ export function ApiStatusProvider({ children }: { children: ReactNode }) {
 			window.removeEventListener('online', handleOnline)
 			window.removeEventListener('offline', handleOffline)
 		}
-	}, [checkConnection, isConnected])
+	}, [checkConnection, scheduleNextCheck])
 
 	return (
 		<ApiStatusContext.Provider value={{ isConnected, isChecking }}>
