@@ -249,15 +249,15 @@ export function ArtistPage() {
 						return false
 					}
 
-				// Still pending or running, wait and try again
-				await new Promise((resolve, reject) => {
-					const timeout = setTimeout(resolve, pollInterval)
-					// Listen for abort during the wait (once: true auto-removes listener)
-					signal.addEventListener('abort', () => {
-						clearTimeout(timeout)
-						reject(new Error('Aborted'))
-					}, { once: true })
-				})
+					// Still pending or running, wait and try again
+					await new Promise((resolve, reject) => {
+						const timeout = setTimeout(resolve, pollInterval)
+						// Listen for abort during the wait (once: true auto-removes listener)
+						signal.addEventListener('abort', () => {
+							clearTimeout(timeout)
+							reject(new Error('Aborted'))
+						}, { once: true })
+					})
 				} catch (error) {
 					// If aborted, return false cleanly
 					if (error instanceof Error && error.name === 'AbortError') {
@@ -266,6 +266,8 @@ export function ArtistPage() {
 					if (error instanceof Error && error.message === 'Aborted') {
 						return false
 					}
+
+					console.error('Error polling job status:', error)
 					return false
 				}
 			}
