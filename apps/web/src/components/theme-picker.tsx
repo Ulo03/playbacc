@@ -10,13 +10,6 @@ import {
 	CardTitle,
 } from '@/components/ui/card'
 import {
-	Combobox,
-	ComboboxInput,
-	ComboboxContent,
-	ComboboxList,
-	ComboboxItem,
-} from '@/components/ui/combobox'
-import {
 	Select,
 	SelectContent,
 	SelectItem,
@@ -231,37 +224,30 @@ export function ThemePicker() {
 					<label className="text-xs font-medium block">
 						{t('themePicker.labels.theme')}
 					</label>
-					<Combobox
+					<Select
 						value={theme}
 						onValueChange={(value) => {
 							if (value) setTheme(value)
 						}}
 					>
-						<ComboboxInput
-							placeholder={t(
-								'themePicker.placeholders.selectTheme'
-							)}
-							showClear={false}
-							value={currentTheme?.name || theme}
-							onChange={(e) => {
-								// Prevent manual editing, only allow selection from dropdown
-								e.preventDefault()
-							}}
-							readOnly
-						/>
-						<ComboboxContent>
-							<ComboboxList>
-								{themeOptions.map((option) => (
-									<ComboboxItem
-										key={option.value}
-										value={option.value}
-									>
-										{option.label}
-									</ComboboxItem>
-								))}
-							</ComboboxList>
-						</ComboboxContent>
-					</Combobox>
+						<SelectTrigger className="w-full">
+							<SelectValue
+								placeholder={t(
+									'themePicker.placeholders.selectTheme'
+								)}
+							/>
+						</SelectTrigger>
+						<SelectContent>
+							{themeOptions.map((option) => (
+								<SelectItem
+									key={option.value}
+									value={option.value}
+								>
+									{option.label}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
 				</div>
 
 				<div className="flex-1 space-y-1.5 min-w-0 sm:max-w-[200px]">
