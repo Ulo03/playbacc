@@ -12,7 +12,6 @@
 		"format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\""
 	},
 	"dependencies": {
-		"@base-ui/react": "^1.0.0",
 		"@fontsource-variable/jetbrains-mono": "^5.2.8",
 		"@tailwindcss/vite": "^4.1.17",
 		"@tanstack/react-router": "^1.144.0",
