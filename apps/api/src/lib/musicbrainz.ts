@@ -10,6 +10,7 @@
  * @see https://musicbrainz.org/doc/MusicBrainz_API/Rate_Limiting
  */
 
+import { LRUCache } from 'lru-cache'
 import type {
 	ArtistSearchResponse,
 	ArtistSearchResultResponse,
@@ -710,27 +711,126 @@ export async function getReleaseCoverUrl(
 }
 
 /**
- * In-memory cache for MusicBrainz lookups within a single worker run.
+ * Configuration for MusicBrainzCache limits.
+ * All values are entry counts (not bytes).
+ */
+export interface MusicBrainzCacheLimits {
+	/** Max entries for ISRC → MBID lookups (high-frequency, small values) */
+	isrcToMbidMax: number
+	/** Max entries for search key → MBID lookups (high-frequency, small values) */
+	searchKeyToMbidMax: number
+	/** Max entries for MBID → recording details (medium-frequency, heavier payloads) */
+	mbidToDetailsMax: number
+	/** Max entries for release MBID → cover URL (small values, decent reuse) */
+	releaseCoverUrlsMax: number
+	/** Max entries for artist MBID → artist details (medium-frequency, heavier payloads) */
+	artistDetailsMax: number
+	/** Max entries for release MBID → release details (medium-frequency, heavier payloads) */
+	releaseDetailsMax: number
+	/** Max entries for artist search results (heavy arrays, lower priority) */
+	artistSearchResultsMax: number
+	/** Max entries for release search results (heavy arrays, lower priority) */
+	releaseSearchResultsMax: number
+}
+
+/**
+ * Options for constructing a MusicBrainzCache.
+ */
+export interface MusicBrainzCacheOptions {
+	/** Override default cache limits */
+	limits?: Partial<MusicBrainzCacheLimits>
+}
+
+/**
+ * Default cache limits tuned for "tens of thousands" of entries.
+ * Prioritizes high-frequency, small-value caches with larger limits.
+ */
+const DEFAULT_CACHE_LIMITS: MusicBrainzCacheLimits = {
+	// High-frequency, tiny values (string | null)
+	isrcToMbidMax: 50_000,
+	searchKeyToMbidMax: 50_000,
+
+	// Moderate frequency, heavier payloads (full details objects)
+	mbidToDetailsMax: 10_000,
+	artistDetailsMax: 10_000,
+	releaseDetailsMax: 10_000,
+
+	// Small values (URLs), decent reuse
+	releaseCoverUrlsMax: 20_000,
+
+	// Potentially heavy arrays (search results), lower priority
+	artistSearchResultsMax: 2_000,
+	releaseSearchResultsMax: 2_000,
+}
+
+/**
+ * Wrapper type for caching nullable values in LRUCache.
+ * LRUCache v11 doesn't allow null as values, so we wrap them.
+ */
+interface CacheEntry<T> {
+	value: T | null
+}
+
+/**
+ * In-memory LRU cache for MusicBrainz lookups within a single worker run.
  * Reduces redundant API calls for repeated tracks/artists.
+ *
+ * Uses LRU (Least Recently Used) eviction to prevent unbounded memory growth.
+ * Cache limits are configurable via constructor options.
  */
 export class MusicBrainzCache {
-	private isrcToMbid = new Map<string, string | null>()
-	private searchKeyToMbid = new Map<string, string | null>()
-	private mbidToDetails = new Map<
+	private readonly limits: MusicBrainzCacheLimits
+
+	// Caches for nullable values use CacheEntry wrapper
+	private isrcToMbid: LRUCache<string, CacheEntry<string>>
+	private searchKeyToMbid: LRUCache<string, CacheEntry<string>>
+	private mbidToDetails: LRUCache<
 		string,
-		MusicBrainzRecordingDetails | null
-	>()
-	private releaseCoverUrls = new Map<string, string | null>()
-	private artistDetails = new Map<string, MusicBrainzArtistDetails | null>()
-	private releaseDetails = new Map<string, MusicBrainzReleaseDetails | null>()
-	private artistSearchResults = new Map<
+		CacheEntry<MusicBrainzRecordingDetails>
+	>
+	private releaseCoverUrls: LRUCache<string, CacheEntry<string>>
+	private artistDetails: LRUCache<
+		string,
+		CacheEntry<MusicBrainzArtistDetails>
+	>
+	private releaseDetails: LRUCache<
+		string,
+		CacheEntry<MusicBrainzReleaseDetails>
+	>
+	// Non-nullable array caches don't need wrapper
+	private artistSearchResults: LRUCache<
 		string,
 		MusicBrainzArtistSearchResult[]
-	>()
-	private releaseSearchResults = new Map<
+	>
+	private releaseSearchResults: LRUCache<
 		string,
 		MusicBrainzReleaseSearchResult[]
-	>()
+	>
+
+	constructor(options?: MusicBrainzCacheOptions) {
+		// Merge user-provided limits with defaults
+		this.limits = { ...DEFAULT_CACHE_LIMITS, ...options?.limits }
+
+		// Initialize LRU caches with configured limits
+		this.isrcToMbid = new LRUCache({ max: this.limits.isrcToMbidMax })
+		this.searchKeyToMbid = new LRUCache({
+			max: this.limits.searchKeyToMbidMax,
+		})
+		this.mbidToDetails = new LRUCache({ max: this.limits.mbidToDetailsMax })
+		this.releaseCoverUrls = new LRUCache({
+			max: this.limits.releaseCoverUrlsMax,
+		})
+		this.artistDetails = new LRUCache({ max: this.limits.artistDetailsMax })
+		this.releaseDetails = new LRUCache({
+			max: this.limits.releaseDetailsMax,
+		})
+		this.artistSearchResults = new LRUCache({
+			max: this.limits.artistSearchResultsMax,
+		})
+		this.releaseSearchResults = new LRUCache({
+			max: this.limits.releaseSearchResultsMax,
+		})
+	}
 
 	/**
 	 * Creates a cache key for recording search
@@ -765,12 +865,13 @@ export class MusicBrainzCache {
 	 * Look up recording by ISRC with caching
 	 */
 	async lookupByIsrc(isrc: string): Promise<string | null> {
-		if (this.isrcToMbid.has(isrc)) {
-			return this.isrcToMbid.get(isrc)!
+		const cached = this.isrcToMbid.get(isrc)
+		if (cached !== undefined) {
+			return cached.value
 		}
 
 		const mbid = await lookupTrackByIsrc(isrc)
-		this.isrcToMbid.set(isrc, mbid)
+		this.isrcToMbid.set(isrc, { value: mbid })
 		return mbid
 	}
 
@@ -783,12 +884,13 @@ export class MusicBrainzCache {
 		album?: string
 	): Promise<string | null> {
 		const key = this.makeSearchKey(title, artist, album)
-		if (this.searchKeyToMbid.has(key)) {
-			return this.searchKeyToMbid.get(key)!
+		const cached = this.searchKeyToMbid.get(key)
+		if (cached !== undefined) {
+			return cached.value
 		}
 
 		const mbid = await searchRecording(title, artist, album)
-		this.searchKeyToMbid.set(key, mbid)
+		this.searchKeyToMbid.set(key, { value: mbid })
 		return mbid
 	}
 
@@ -798,12 +900,13 @@ export class MusicBrainzCache {
 	async getDetailsCached(
 		mbid: string
 	): Promise<MusicBrainzRecordingDetails | null> {
-		if (this.mbidToDetails.has(mbid)) {
-			return this.mbidToDetails.get(mbid)!
+		const cached = this.mbidToDetails.get(mbid)
+		if (cached !== undefined) {
+			return cached.value
 		}
 
 		const details = await getRecordingDetails(mbid)
-		this.mbidToDetails.set(mbid, details)
+		this.mbidToDetails.set(mbid, { value: details })
 		return details
 	}
 
@@ -813,12 +916,13 @@ export class MusicBrainzCache {
 	async getReleaseCoverUrlCached(
 		releaseMbid: string
 	): Promise<string | null> {
-		if (this.releaseCoverUrls.has(releaseMbid)) {
-			return this.releaseCoverUrls.get(releaseMbid)!
+		const cached = this.releaseCoverUrls.get(releaseMbid)
+		if (cached !== undefined) {
+			return cached.value
 		}
 
 		const coverUrl = await getReleaseCoverUrl(releaseMbid)
-		this.releaseCoverUrls.set(releaseMbid, coverUrl)
+		this.releaseCoverUrls.set(releaseMbid, { value: coverUrl })
 		return coverUrl
 	}
 
@@ -828,12 +932,13 @@ export class MusicBrainzCache {
 	async getArtistDetailsCached(
 		artistMbid: string
 	): Promise<MusicBrainzArtistDetails | null> {
-		if (this.artistDetails.has(artistMbid)) {
-			return this.artistDetails.get(artistMbid)!
+		const cached = this.artistDetails.get(artistMbid)
+		if (cached !== undefined) {
+			return cached.value
 		}
 
 		const details = await getArtistDetails(artistMbid)
-		this.artistDetails.set(artistMbid, details)
+		this.artistDetails.set(artistMbid, { value: details })
 		return details
 	}
 
@@ -843,12 +948,13 @@ export class MusicBrainzCache {
 	async getReleaseDetailsCached(
 		releaseMbid: string
 	): Promise<MusicBrainzReleaseDetails | null> {
-		if (this.releaseDetails.has(releaseMbid)) {
-			return this.releaseDetails.get(releaseMbid)!
+		const cached = this.releaseDetails.get(releaseMbid)
+		if (cached !== undefined) {
+			return cached.value
 		}
 
 		const details = await getReleaseDetails(releaseMbid)
-		this.releaseDetails.set(releaseMbid, details)
+		this.releaseDetails.set(releaseMbid, { value: details })
 		return details
 	}
 
@@ -902,27 +1008,52 @@ export class MusicBrainzCache {
 	}
 
 	/**
-	 * Get cache statistics for logging
+	 * Get cache statistics for logging.
+	 * Returns size (current entry count) and max (limit) for each cache.
 	 */
 	getStats(): {
-		isrc: number
-		search: number
-		details: number
-		covers: number
-		artists: number
-		releases: number
-		artistSearches: number
-		releaseSearches: number
+		isrc: { size: number; max: number }
+		search: { size: number; max: number }
+		details: { size: number; max: number }
+		covers: { size: number; max: number }
+		artists: { size: number; max: number }
+		releases: { size: number; max: number }
+		artistSearches: { size: number; max: number }
+		releaseSearches: { size: number; max: number }
 	} {
 		return {
-			isrc: this.isrcToMbid.size,
-			search: this.searchKeyToMbid.size,
-			details: this.mbidToDetails.size,
-			covers: this.releaseCoverUrls.size,
-			artists: this.artistDetails.size,
-			releases: this.releaseDetails.size,
-			artistSearches: this.artistSearchResults.size,
-			releaseSearches: this.releaseSearchResults.size,
+			isrc: {
+				size: this.isrcToMbid.size,
+				max: this.limits.isrcToMbidMax,
+			},
+			search: {
+				size: this.searchKeyToMbid.size,
+				max: this.limits.searchKeyToMbidMax,
+			},
+			details: {
+				size: this.mbidToDetails.size,
+				max: this.limits.mbidToDetailsMax,
+			},
+			covers: {
+				size: this.releaseCoverUrls.size,
+				max: this.limits.releaseCoverUrlsMax,
+			},
+			artists: {
+				size: this.artistDetails.size,
+				max: this.limits.artistDetailsMax,
+			},
+			releases: {
+				size: this.releaseDetails.size,
+				max: this.limits.releaseDetailsMax,
+			},
+			artistSearches: {
+				size: this.artistSearchResults.size,
+				max: this.limits.artistSearchResultsMax,
+			},
+			releaseSearches: {
+				size: this.releaseSearchResults.size,
+				max: this.limits.releaseSearchResultsMax,
+			},
 		}
 	}
 }
