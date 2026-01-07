@@ -15,7 +15,7 @@
  */
 
 import { db } from '../db'
-import { eq, and, sql, lt, inArray, or } from 'drizzle-orm'
+import { eq, and, sql, lt, lte, inArray, or } from 'drizzle-orm'
 import { mb_enrichment_jobs, artists, albums, tracks } from '@playbacc/types/db/schema'
 
 // =============================================================================
@@ -245,7 +245,7 @@ export async function claimJobs(
 					// Pending and ready to run
 					and(
 						eq(mb_enrichment_jobs.status, 'pending'),
-						lt(mb_enrichment_jobs.run_after, now)
+						lte(mb_enrichment_jobs.run_after, now)
 					),
 					// Or running but lock is stale
 					and(
@@ -263,7 +263,7 @@ export async function claimJobs(
 							or(
 								and(
 									eq(mb_enrichment_jobs.status, 'pending'),
-									lt(mb_enrichment_jobs.run_after, now)
+									lte(mb_enrichment_jobs.run_after, now)
 								),
 								and(
 									eq(mb_enrichment_jobs.status, 'running'),
