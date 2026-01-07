@@ -3,7 +3,7 @@ import { useNavigate, Link, getRouteApi } from '@tanstack/react-router'
 import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { ArrowLeft, Users, User, Calendar } from 'lucide-react'
+import { ArrowLeft, Users, User, Calendar, ChevronDown } from 'lucide-react'
 
 interface MemberInfo {
 	id: string
@@ -132,6 +132,9 @@ export function ArtistPage() {
 	const [artist, setArtist] = useState<ArtistResponse | null>(null)
 	const [isLoading, setIsLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
+	const [currentMembersExpanded, setCurrentMembersExpanded] = useState(false)
+	const [previousMembersExpanded, setPreviousMembersExpanded] = useState(false)
+	const [groupsExpanded, setGroupsExpanded] = useState(false)
 
 	const fetchArtist = useCallback(async () => {
 		if (!token) return
@@ -307,124 +310,154 @@ export function ArtistPage() {
 							<div className="space-y-4">
 								{artist.members.current.length > 0 && (
 									<Card>
-										<CardContent>
-											<h3 className="text-sm font-medium mb-3 text-muted-foreground flex items-center gap-2">
-												<Users className="size-4" />
-												Current Members
-											</h3>
-											<div className="space-y-1">
-												{artist.members.current.map(
-													(member) => (
-														<Link
-															key={member.id}
-															to="/artist/$artistId"
-															params={{
-																artistId:
-																	member.id,
-															}}
-															className="flex items-center gap-3 py-2 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors"
-														>
-															{member.image_url ? (
-																<img
-																	src={
-																		member.image_url
-																	}
-																	alt={
-																		member.name
-																	}
-																	className="w-10 h-10 rounded-full object-cover"
-																/>
-															) : (
-																<div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-																	<User className="size-4 text-muted-foreground" />
-																</div>
-															)}
-															<div className="flex-1 min-w-0">
-																<p className="text-sm font-medium truncate">
-																	{
-																		member.name
-																	}
-																</p>
-																{formatMembershipDates(
-																	member.begin_raw,
-																	member.end_raw,
-																	member.ended
-																) && (
-																	<p className="text-xs text-muted-foreground">
-																		{formatMembershipDates(
-																			member.begin_raw,
-																			member.end_raw,
-																			member.ended
-																		)}
-																	</p>
+										<CardContent className="p-0">
+											<button
+												onClick={() => setCurrentMembersExpanded(!currentMembersExpanded)}
+												className="w-full p-4 flex items-center justify-between hover:bg-muted/30 transition-colors rounded-lg"
+											>
+												<h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+													<Users className="size-4" />
+													Current Members
+													<span className="text-xs bg-muted px-1.5 py-0.5 rounded">
+														{artist.members.current.length}
+													</span>
+												</h3>
+												<ChevronDown 
+													className={`size-4 text-muted-foreground transition-transform duration-200 ${
+														currentMembersExpanded ? 'rotate-180' : ''
+													}`} 
+												/>
+											</button>
+											{currentMembersExpanded && (
+												<div className="space-y-1 px-4 pb-4">
+													{artist.members.current.map(
+														(member) => (
+															<Link
+																key={member.id}
+																to="/artist/$artistId"
+																params={{
+																	artistId:
+																		member.id,
+																}}
+																className="flex items-center gap-3 py-2 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors"
+															>
+																{member.image_url ? (
+																	<img
+																		src={
+																			member.image_url
+																		}
+																		alt={
+																			member.name
+																		}
+																		className="w-10 h-10 rounded-full object-cover"
+																	/>
+																) : (
+																	<div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+																		<User className="size-4 text-muted-foreground" />
+																	</div>
 																)}
-															</div>
-														</Link>
-													)
-												)}
-											</div>
+																<div className="flex-1 min-w-0">
+																	<p className="text-sm font-medium truncate">
+																		{
+																			member.name
+																		}
+																	</p>
+																	{formatMembershipDates(
+																		member.begin_raw,
+																		member.end_raw,
+																		member.ended
+																	) && (
+																		<p className="text-xs text-muted-foreground">
+																			{formatMembershipDates(
+																				member.begin_raw,
+																				member.end_raw,
+																				member.ended
+																			)}
+																		</p>
+																	)}
+																</div>
+															</Link>
+														)
+													)}
+												</div>
+											)}
 										</CardContent>
 									</Card>
 								)}
 
 								{artist.members.previous.length > 0 && (
 									<Card>
-										<CardContent>
-											<h3 className="text-sm font-medium mb-3 text-muted-foreground flex items-center gap-2">
-												<Users className="size-4" />
-												Previous Members
-											</h3>
-											<div className="space-y-1">
-												{artist.members.previous.map(
-													(member) => (
-														<Link
-															key={member.id}
-															to="/artist/$artistId"
-															params={{
-																artistId:
-																	member.id,
-															}}
-															className="flex items-center gap-3 py-2 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors"
-														>
-															{member.image_url ? (
-																<img
-																	src={
-																		member.image_url
-																	}
-																	alt={
-																		member.name
-																	}
-																	className="w-10 h-10 rounded-full object-cover"
-																/>
-															) : (
-																<div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-																	<User className="size-4 text-muted-foreground" />
-																</div>
-															)}
-															<div className="flex-1 min-w-0">
-																<p className="text-sm font-medium truncate">
-																	{
-																		member.name
-																	}
-																</p>
-																{formatMembershipDates(
-																	member.begin_raw,
-																	member.end_raw,
-																	member.ended
-																) && (
-																	<p className="text-xs text-muted-foreground">
-																		{formatMembershipDates(
-																			member.begin_raw,
-																			member.end_raw,
-																			member.ended
-																		)}
-																	</p>
+										<CardContent className="p-0">
+											<button
+												onClick={() => setPreviousMembersExpanded(!previousMembersExpanded)}
+												className="w-full p-4 flex items-center justify-between hover:bg-muted/30 transition-colors rounded-lg"
+											>
+												<h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+													<Users className="size-4" />
+													Previous Members
+													<span className="text-xs bg-muted px-1.5 py-0.5 rounded">
+														{artist.members.previous.length}
+													</span>
+												</h3>
+												<ChevronDown 
+													className={`size-4 text-muted-foreground transition-transform duration-200 ${
+														previousMembersExpanded ? 'rotate-180' : ''
+													}`} 
+												/>
+											</button>
+											{previousMembersExpanded && (
+												<div className="space-y-1 px-4 pb-4">
+													{artist.members.previous.map(
+														(member) => (
+															<Link
+																key={member.id}
+																to="/artist/$artistId"
+																params={{
+																	artistId:
+																		member.id,
+																}}
+																className="flex items-center gap-3 py-2 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors"
+															>
+																{member.image_url ? (
+																	<img
+																		src={
+																			member.image_url
+																		}
+																		alt={
+																			member.name
+																		}
+																		className="w-10 h-10 rounded-full object-cover"
+																	/>
+																) : (
+																	<div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+																		<User className="size-4 text-muted-foreground" />
+																	</div>
 																)}
-															</div>
-														</Link>
-													)
-												)}
-											</div>
+																<div className="flex-1 min-w-0">
+																	<p className="text-sm font-medium truncate">
+																		{
+																			member.name
+																		}
+																	</p>
+																	{formatMembershipDates(
+																		member.begin_raw,
+																		member.end_raw,
+																		member.ended
+																	) && (
+																		<p className="text-xs text-muted-foreground">
+																			{formatMembershipDates(
+																				member.begin_raw,
+																				member.end_raw,
+																				member.ended
+																			)}
+																		</p>
+																	)}
+																</div>
+															</Link>
+														)
+													)}
+												</div>
+											)}
 										</CardContent>
 									</Card>
 								)}
@@ -448,55 +481,70 @@ export function ArtistPage() {
 						{/* Groups section (for solo artists) */}
 						{!isGroup && 'groups' in artist && hasGroups && (
 							<Card>
-								<CardContent>
-									<h3 className="text-sm font-medium mb-3 text-muted-foreground flex items-center gap-2">
-										<Users className="size-4" />
-										Member of
-									</h3>
-									<div className="space-y-1">
-										{(
-											artist as PersonArtistResponse
-										).groups.map((group) => (
-											<Link
-												key={group.id}
-												to="/artist/$artistId"
-												params={{
-													artistId: group.id,
-												}}
-												className="flex items-center gap-3 py-2 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors"
-											>
-												{group.image_url ? (
-													<img
-														src={group.image_url}
-														alt={group.name}
-														className="w-10 h-10 rounded-full object-cover"
-													/>
-												) : (
-													<div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-														<Users className="size-4 text-muted-foreground" />
-													</div>
-												)}
-												<div className="flex-1 min-w-0">
-													<p className="text-sm font-medium truncate">
-														{group.name}
-													</p>
-													{formatMembershipDates(
-														group.begin_raw,
-														group.end_raw,
-														group.ended
-													) && (
-														<p className="text-xs text-muted-foreground">
-															{formatMembershipDates(
-																group.begin_raw,
-																group.end_raw,
-																group.ended
-															)}
-														</p>
+								<CardContent className="p-0">
+									<button
+										onClick={() => setGroupsExpanded(!groupsExpanded)}
+										className="w-full p-4 flex items-center justify-between hover:bg-muted/30 transition-colors rounded-lg"
+									>
+										<h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+											<Users className="size-4" />
+											Member of
+											<span className="text-xs bg-muted px-1.5 py-0.5 rounded">
+												{(artist as PersonArtistResponse).groups.length}
+											</span>
+										</h3>
+										<ChevronDown 
+											className={`size-4 text-muted-foreground transition-transform duration-200 ${
+												groupsExpanded ? 'rotate-180' : ''
+											}`} 
+										/>
+									</button>
+									{groupsExpanded && (
+										<div className="space-y-1 px-4 pb-4">
+											{(
+												artist as PersonArtistResponse
+											).groups.map((group) => (
+												<Link
+													key={group.id}
+													to="/artist/$artistId"
+													params={{
+														artistId: group.id,
+													}}
+													className="flex items-center gap-3 py-2 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors"
+												>
+													{group.image_url ? (
+														<img
+															src={group.image_url}
+															alt={group.name}
+															className="w-10 h-10 rounded-full object-cover"
+														/>
+													) : (
+														<div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+															<Users className="size-4 text-muted-foreground" />
+														</div>
 													)}
-												</div>
-											</Link>
-										))}
-									</div>
+													<div className="flex-1 min-w-0">
+														<p className="text-sm font-medium truncate">
+															{group.name}
+														</p>
+														{formatMembershipDates(
+															group.begin_raw,
+															group.end_raw,
+															group.ended
+														) && (
+															<p className="text-xs text-muted-foreground">
+																{formatMembershipDates(
+																	group.begin_raw,
+																	group.end_raw,
+																	group.ended
+																)}
+															</p>
+														)}
+													</div>
+												</Link>
+											))}
+										</div>
+									)}
 								</CardContent>
 							</Card>
 						)}
