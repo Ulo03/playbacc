@@ -19,7 +19,7 @@ stats.use('*', authenticate)
 /**
  * GET /api/stats/top-groups
  *
- * Returns the user's top 5 groups (bands) based on scrobble count.
+ * Returns the user's top 5 groups (bands) based on total time played.
  */
 stats.get('/top-groups', async (ctx) => {
 	const user = ctx.get('user')
@@ -45,7 +45,7 @@ stats.get('/top-groups', async (ctx) => {
 			WHERE s.user_id = ${userId}
 				AND a.type = 'group'
 			GROUP BY a.id, a.name, a.image_url
-			ORDER BY play_count DESC
+			ORDER BY total_ms DESC
 			LIMIT 5
 		`)
 
@@ -67,7 +67,7 @@ stats.get('/top-groups', async (ctx) => {
 /**
  * GET /api/stats/top-solo-artists
  *
- * Returns the user's top 5 solo artists (not part of any group) based on scrobble count.
+ * Returns the user's top 5 solo artists (not part of any group) based on total time played.
  */
 stats.get('/top-solo-artists', async (ctx) => {
 	const user = ctx.get('user')
@@ -96,7 +96,7 @@ stats.get('/top-solo-artists', async (ctx) => {
 					SELECT 1 FROM artists_groups ag WHERE ag.member_id = a.id
 				)
 			GROUP BY a.id, a.name, a.image_url
-			ORDER BY play_count DESC
+			ORDER BY total_ms DESC
 			LIMIT 5
 		`)
 
