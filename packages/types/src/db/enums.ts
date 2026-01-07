@@ -27,3 +27,28 @@ export const artistTypeEnum = pgEnum('artist_type', [
 
 // Gender Enum (for Person artists)
 export const genderEnum = pgEnum('gender', ['male', 'female', 'other'])
+
+// MusicBrainz Enrichment Job Status Enum
+export const mbEnrichmentJobStatusEnum = pgEnum('mb_enrichment_job_status', [
+	'pending',
+	'running',
+	'succeeded',
+	'failed',
+])
+
+// MusicBrainz Enrichment Job Type Enum
+export const mbEnrichmentJobTypeEnum = pgEnum('mb_enrichment_job_type', [
+	'artist.resolve_mbid',
+	'artist.sync_relationships',
+	'album.resolve_mbid',
+	'album.sync',
+	'track.resolve_mbid',
+	'track.sync',
+])
+
+// MusicBrainz Enrichment Entity Type Enum
+export const mbEnrichmentEntityTypeEnum = pgEnum('mb_enrichment_entity_type', [
+	'artist',
+	'album',
+	'track',
+])

@@ -3,12 +3,13 @@
 	"scripts": {
 		"dev": "bun run --hot src/index.ts",
 		"worker:scrobble": "bun run src/worker/scrobble-worker.ts",
+		"worker:musicbrainz": "bun run src/worker/musicbrainz-worker.ts",
 		"db:generate": "drizzle-kit generate",
 		"db:ensure": "bun run scripts/ensure-db.ts",
 		"db:migrate": "bun run db:ensure && drizzle-kit migrate",
 		"db:push": "bun run db:ensure && drizzle-kit push",
 		"db:studio": "bun run db:ensure && drizzle-kit studio",
-		"dev:all": "concurrently \"bun run dev\" \"bun run worker:scrobble\" \"bun run db:studio\" --names \"API,WORKER,STUDIO\" --prefix-colors \"blue,green,yellow\"",
+		"dev:all": "concurrently \"bun run dev\" \"bun run worker:scrobble\" \"bun run worker:musicbrainz\" \"bun run db:studio\" --names \"API,SCROBBLE,MB,STUDIO\" --prefix-colors \"blue,green,magenta,yellow\"",
 		"format": "prettier --write \"**/*.{ts,tsx,js,jsx,json}\"",
 		"format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json}\""
 	},

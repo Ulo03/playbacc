@@ -3,8 +3,8 @@
  *
  * Provides endpoints for:
  * - Searching MusicBrainz for candidates (artists, releases)
- * - Syncing single entities by ID
- * - Bulk syncing entities
+ * - Enqueueing sync jobs for background processing
+ * - Viewing job status and queue statistics
  *
  * All endpoints require authentication.
  *
@@ -15,10 +15,14 @@ import { Hono } from 'hono'
 import { authenticate } from '../middleware/auth'
 import { searchArtists, searchReleases } from '../lib/musicbrainz'
 import {
-	syncArtistRelationshipsByMbid,
-	syncTrackById,
-	syncAlbumById,
-} from '../lib/sync'
+	enqueueJob,
+	enqueueJobs,
+	getJob,
+	getQueueStats,
+	getJobsForEntity,
+	type MbEnrichmentJobType,
+	type MbEnrichmentEntityType,
+} from '../lib/mb-enrichment-queue'
 import { db } from '../db'
 
 const sync = new Hono()
@@ -118,8 +122,7 @@ sync.get('/search/releases', async (ctx) => {
 							mbid: r['release-group'].id,
 							title: r['release-group'].title,
 							primaryType: r['release-group']['primary-type'],
-							secondaryTypes:
-								r['release-group']['secondary-types'],
+							secondaryTypes: r['release-group']['secondary-types'],
 						}
 					: null,
 				labelInfo: r['label-info']?.map((li) => ({
@@ -136,14 +139,56 @@ sync.get('/search/releases', async (ctx) => {
 })
 
 // =============================================================================
-// Artist Sync
+// Job Status Endpoints
+// =============================================================================
+
+/**
+ * GET /api/sync/jobs
+ *
+ * Get queue statistics.
+ */
+sync.get('/jobs', async (ctx) => {
+	try {
+		const stats = await getQueueStats()
+		return ctx.json(stats)
+	} catch (error) {
+		console.error('[Sync] Error getting queue stats:', error)
+		return ctx.json({ error: 'Failed to get queue stats' }, 500)
+	}
+})
+
+/**
+ * GET /api/sync/jobs/:id
+ *
+ * Get a specific job by ID.
+ */
+sync.get('/jobs/:id', async (ctx) => {
+	const jobId = ctx.req.param('id')
+
+	try {
+		const job = await getJob(jobId)
+
+		if (!job) {
+			return ctx.json({ error: 'Job not found' }, 404)
+		}
+
+		return ctx.json(job)
+	} catch (error) {
+		console.error('[Sync] Error getting job:', error)
+		return ctx.json({ error: 'Failed to get job' }, 500)
+	}
+})
+
+// =============================================================================
+// Artist Sync (Enqueue)
 // =============================================================================
 
 /**
  * POST /api/sync/artists/:id
  *
- * Sync a single artist's relationships from MusicBrainz.
- * The artist must have an MBID.
+ * Enqueue a sync job for a single artist.
+ * The artist must have an MBID for sync_relationships, otherwise resolve_mbid is enqueued.
+ * Returns 202 Accepted with job info.
  */
 sync.post('/artists/:id', async (ctx) => {
 	const artistId = ctx.req.param('id')
@@ -156,119 +201,109 @@ sync.post('/artists/:id', async (ctx) => {
 		return ctx.json({ error: 'Artist not found' }, 404)
 	}
 
-	if (!artist.mbid) {
-		return ctx.json({ error: 'Artist has no MBID' }, 400)
-	}
-
 	try {
-		const result = await syncArtistRelationshipsByMbid(artist.mbid)
+		// Choose job type based on whether artist has MBID
+		const jobType: MbEnrichmentJobType = artist.mbid
+			? 'artist.sync_relationships'
+			: 'artist.resolve_mbid'
 
-		return ctx.json({
-			artistId,
-			mbid: artist.mbid,
-			artistType: result.artistType,
-			membershipsProcessed: result.membershipsProcessed,
-			membershipsInserted: result.membershipsInserted,
-			membershipsUpdated: result.membershipsUpdated,
-			membersProcessed: result.membersProcessed,
-			errors: result.errors,
+		const result = await enqueueJob({
+			jobType,
+			entityType: 'artist',
+			entityId: artistId,
+			priority: 10, // Higher priority for manual requests
 		})
+
+		return ctx.json(
+			{
+				message: result.created ? 'Job enqueued' : 'Job already exists',
+				jobId: result.jobId,
+				jobType,
+				entityId: artistId,
+				entityName: artist.name,
+			},
+			202
+		)
 	} catch (error) {
-		console.error('[Sync] Error syncing artist:', error)
-		return ctx.json({ error: 'Sync failed' }, 500)
+		console.error('[Sync] Error enqueueing artist sync:', error)
+		return ctx.json({ error: 'Failed to enqueue job' }, 500)
 	}
 })
 
 /**
  * POST /api/sync/artists
  *
- * Bulk sync artists that have MBIDs.
+ * Enqueue sync jobs for multiple artists.
  * Query params:
- * - limit: Max artists to sync (default 10, max 50)
+ * - limit: Max artists to enqueue (default 10, max 50)
+ * - type: 'sync' (default, for artists with MBID) or 'resolve' (for artists without MBID)
  */
 sync.post('/artists', async (ctx) => {
 	const limitParam = ctx.req.query('limit')
+	const typeParam = ctx.req.query('type') || 'sync'
 	const limit = Math.min(parseInt(limitParam || '10', 10), 50)
 
 	try {
-		// Find artists with MBIDs that we can sync
-		const artistsToSync = await db.query.artists.findMany({
-			where: (a, { isNotNull }) => isNotNull(a.mbid),
-			columns: { id: true, name: true, mbid: true },
-			limit,
-		})
+		let artistsToEnqueue: Array<{ id: string; name: string; mbid: string | null }>
 
-		const results = {
-			total: artistsToSync.length,
-			synced: 0,
-			failed: 0,
-			details: [] as Array<{
-				artistId: string
-				name: string
-				mbid: string
-				success: boolean
-				membershipsInserted?: number
-				error?: string
-			}>,
+		if (typeParam === 'resolve') {
+			// Find artists without MBIDs
+			artistsToEnqueue = await db.query.artists.findMany({
+				where: (a, { isNull }) => isNull(a.mbid),
+				columns: { id: true, name: true, mbid: true },
+				limit,
+			})
+		} else {
+			// Find artists with MBIDs
+			artistsToEnqueue = await db.query.artists.findMany({
+				where: (a, { isNotNull }) => isNotNull(a.mbid),
+				columns: { id: true, name: true, mbid: true },
+				limit,
+			})
 		}
 
-		for (const artist of artistsToSync) {
-			if (!artist.mbid) continue
+		const jobType: MbEnrichmentJobType =
+			typeParam === 'resolve' ? 'artist.resolve_mbid' : 'artist.sync_relationships'
 
-			try {
-				const syncResult = await syncArtistRelationshipsByMbid(
-					artist.mbid
-				)
+		const results = await enqueueJobs(
+			artistsToEnqueue.map((artist) => ({
+				jobType,
+				entityType: 'artist' as MbEnrichmentEntityType,
+				entityId: artist.id,
+				priority: 5, // Medium priority for bulk requests
+			}))
+		)
 
-				if (syncResult.errors.length === 0) {
-					results.synced++
-					results.details.push({
-						artistId: artist.id,
-						name: artist.name,
-						mbid: artist.mbid,
-						success: true,
-						membershipsInserted: syncResult.membershipsInserted,
-					})
-				} else {
-					results.failed++
-					results.details.push({
-						artistId: artist.id,
-						name: artist.name,
-						mbid: artist.mbid,
-						success: false,
-						error: syncResult.errors.join(', '),
-					})
-				}
-			} catch (error) {
-				results.failed++
-				const message =
-					error instanceof Error ? error.message : String(error)
-				results.details.push({
-					artistId: artist.id,
-					name: artist.name,
-					mbid: artist.mbid,
-					success: false,
-					error: message,
-				})
-			}
-		}
+		const created = results.filter((r) => r.created).length
+		const skipped = results.filter((r) => !r.created).length
 
-		return ctx.json(results)
+		return ctx.json(
+			{
+				message: `Enqueued ${created} jobs, ${skipped} already existed`,
+				total: artistsToEnqueue.length,
+				created,
+				skipped,
+				jobType,
+				jobIds: results.filter((r) => r.created).map((r) => r.jobId),
+			},
+			202
+		)
 	} catch (error) {
-		console.error('[Sync] Error in bulk artist sync:', error)
-		return ctx.json({ error: 'Bulk sync failed' }, 500)
+		console.error('[Sync] Error in bulk artist enqueue:', error)
+		return ctx.json({ error: 'Bulk enqueue failed' }, 500)
 	}
 })
 
 // =============================================================================
-// Album Sync
+// Album Sync (Enqueue)
 // =============================================================================
 
 /**
  * POST /api/sync/albums/:id
  *
- * Sync a single album's metadata from MusicBrainz.
- * The album must have an MBID.
+ * Enqueue a sync job for a single album.
+ * The album must have an MBID for sync, otherwise resolve_mbid is enqueued.
+ * Returns 202 Accepted with job info.
  */
 sync.post('/albums/:id', async (ctx) => {
 	const albumId = ctx.req.param('id')
@@ -281,117 +316,107 @@ sync.post('/albums/:id', async (ctx) => {
 		return ctx.json({ error: 'Album not found' }, 404)
 	}
 
-	if (!album.mbid) {
-		return ctx.json({ error: 'Album has no MBID' }, 400)
-	}
-
 	try {
-		const result = await syncAlbumById(albumId)
+		// Choose job type based on whether album has MBID
+		const jobType: MbEnrichmentJobType = album.mbid ? 'album.sync' : 'album.resolve_mbid'
 
-		return ctx.json({
-			albumId,
-			mbid: album.mbid,
-			found: result.found,
-			updated: result.updated,
-			coverArtFetched: result.coverArtFetched,
-			errors: result.errors,
+		const result = await enqueueJob({
+			jobType,
+			entityType: 'album',
+			entityId: albumId,
+			priority: 10, // Higher priority for manual requests
 		})
+
+		return ctx.json(
+			{
+				message: result.created ? 'Job enqueued' : 'Job already exists',
+				jobId: result.jobId,
+				jobType,
+				entityId: albumId,
+				entityName: album.title,
+			},
+			202
+		)
 	} catch (error) {
-		console.error('[Sync] Error syncing album:', error)
-		return ctx.json({ error: 'Sync failed' }, 500)
+		console.error('[Sync] Error enqueueing album sync:', error)
+		return ctx.json({ error: 'Failed to enqueue job' }, 500)
 	}
 })
 
 /**
  * POST /api/sync/albums
  *
- * Bulk sync albums that have MBIDs.
+ * Enqueue sync jobs for multiple albums.
  * Query params:
- * - limit: Max albums to sync (default 10, max 50)
+ * - limit: Max albums to enqueue (default 10, max 50)
+ * - type: 'sync' (default, for albums with MBID) or 'resolve' (for albums without MBID)
  */
 sync.post('/albums', async (ctx) => {
 	const limitParam = ctx.req.query('limit')
+	const typeParam = ctx.req.query('type') || 'sync'
 	const limit = Math.min(parseInt(limitParam || '10', 10), 50)
 
 	try {
-		// Find albums with MBIDs
-		const albumsToSync = await db.query.albums.findMany({
-			where: (a, { isNotNull }) => isNotNull(a.mbid),
-			columns: { id: true, title: true, mbid: true },
-			limit,
-		})
+		let albumsToEnqueue: Array<{ id: string; title: string; mbid: string | null }>
 
-		const results = {
-			total: albumsToSync.length,
-			synced: 0,
-			failed: 0,
-			coversFetched: 0,
-			details: [] as Array<{
-				albumId: string
-				title: string
-				mbid: string
-				success: boolean
-				coverArtFetched?: boolean
-				error?: string
-			}>,
+		if (typeParam === 'resolve') {
+			// Find albums without MBIDs
+			albumsToEnqueue = await db.query.albums.findMany({
+				where: (a, { isNull }) => isNull(a.mbid),
+				columns: { id: true, title: true, mbid: true },
+				limit,
+			})
+		} else {
+			// Find albums with MBIDs
+			albumsToEnqueue = await db.query.albums.findMany({
+				where: (a, { isNotNull }) => isNotNull(a.mbid),
+				columns: { id: true, title: true, mbid: true },
+				limit,
+			})
 		}
 
-		for (const album of albumsToSync) {
-			if (!album.mbid) continue
+		const jobType: MbEnrichmentJobType =
+			typeParam === 'resolve' ? 'album.resolve_mbid' : 'album.sync'
 
-			try {
-				const syncResult = await syncAlbumById(album.id)
+		const results = await enqueueJobs(
+			albumsToEnqueue.map((album) => ({
+				jobType,
+				entityType: 'album' as MbEnrichmentEntityType,
+				entityId: album.id,
+				priority: 5, // Medium priority for bulk requests
+			}))
+		)
 
-				if (syncResult.errors.length === 0) {
-					results.synced++
-					if (syncResult.coverArtFetched) results.coversFetched++
-					results.details.push({
-						albumId: album.id,
-						title: album.title,
-						mbid: album.mbid,
-						success: true,
-						coverArtFetched: syncResult.coverArtFetched,
-					})
-				} else {
-					results.failed++
-					results.details.push({
-						albumId: album.id,
-						title: album.title,
-						mbid: album.mbid,
-						success: false,
-						error: syncResult.errors.join(', '),
-					})
-				}
-			} catch (error) {
-				results.failed++
-				const message =
-					error instanceof Error ? error.message : String(error)
-				results.details.push({
-					albumId: album.id,
-					title: album.title,
-					mbid: album.mbid,
-					success: false,
-					error: message,
-				})
-			}
-		}
+		const created = results.filter((r) => r.created).length
+		const skipped = results.filter((r) => !r.created).length
 
-		return ctx.json(results)
+		return ctx.json(
+			{
+				message: `Enqueued ${created} jobs, ${skipped} already existed`,
+				total: albumsToEnqueue.length,
+				created,
+				skipped,
+				jobType,
+				jobIds: results.filter((r) => r.created).map((r) => r.jobId),
+			},
+			202
+		)
 	} catch (error) {
-		console.error('[Sync] Error in bulk album sync:', error)
-		return ctx.json({ error: 'Bulk sync failed' }, 500)
+		console.error('[Sync] Error in bulk album enqueue:', error)
+		return ctx.json({ error: 'Bulk enqueue failed' }, 500)
 	}
 })
 
 // =============================================================================
-// Track Sync
+// Track Sync (Enqueue)
 // =============================================================================
 
 /**
  * POST /api/sync/tracks/:id
  *
- * Sync a single track's metadata from MusicBrainz.
- * The track must have an MBID.
+ * Enqueue a sync job for a single track.
+ * The track must have an MBID for sync, otherwise resolve_mbid is enqueued.
+ * Returns 202 Accepted with job info.
  */
 sync.post('/tracks/:id', async (ctx) => {
 	const trackId = ctx.req.param('id')
@@ -404,100 +429,155 @@ sync.post('/tracks/:id', async (ctx) => {
 		return ctx.json({ error: 'Track not found' }, 404)
 	}
 
-	if (!track.mbid) {
-		return ctx.json({ error: 'Track has no MBID' }, 400)
-	}
-
 	try {
-		const result = await syncTrackById(trackId)
+		// Choose job type based on whether track has MBID
+		const jobType: MbEnrichmentJobType = track.mbid ? 'track.sync' : 'track.resolve_mbid'
 
-		return ctx.json({
-			trackId,
-			mbid: track.mbid,
-			found: result.found,
-			updated: result.updated,
-			errors: result.errors,
+		const result = await enqueueJob({
+			jobType,
+			entityType: 'track',
+			entityId: trackId,
+			priority: 10, // Higher priority for manual requests
 		})
+
+		return ctx.json(
+			{
+				message: result.created ? 'Job enqueued' : 'Job already exists',
+				jobId: result.jobId,
+				jobType,
+				entityId: trackId,
+				entityName: track.title,
+			},
+			202
+		)
 	} catch (error) {
-		console.error('[Sync] Error syncing track:', error)
-		return ctx.json({ error: 'Sync failed' }, 500)
+		console.error('[Sync] Error enqueueing track sync:', error)
+		return ctx.json({ error: 'Failed to enqueue job' }, 500)
 	}
 })
 
 /**
  * POST /api/sync/tracks
  *
- * Bulk sync tracks that have MBIDs.
+ * Enqueue sync jobs for multiple tracks.
  * Query params:
- * - limit: Max tracks to sync (default 10, max 50)
+ * - limit: Max tracks to enqueue (default 10, max 50)
+ * - type: 'sync' (default, for tracks with MBID) or 'resolve' (for tracks without MBID)
  */
 sync.post('/tracks', async (ctx) => {
+	const limitParam = ctx.req.query('limit')
+	const typeParam = ctx.req.query('type') || 'sync'
+	const limit = Math.min(parseInt(limitParam || '10', 10), 50)
+
+	try {
+		let tracksToEnqueue: Array<{ id: string; title: string; mbid: string | null }>
+
+		if (typeParam === 'resolve') {
+			// Find tracks without MBIDs
+			tracksToEnqueue = await db.query.tracks.findMany({
+				where: (t, { isNull }) => isNull(t.mbid),
+				columns: { id: true, title: true, mbid: true },
+				limit,
+			})
+		} else {
+			// Find tracks with MBIDs
+			tracksToEnqueue = await db.query.tracks.findMany({
+				where: (t, { isNotNull }) => isNotNull(t.mbid),
+				columns: { id: true, title: true, mbid: true },
+				limit,
+			})
+		}
+
+		const jobType: MbEnrichmentJobType =
+			typeParam === 'resolve' ? 'track.resolve_mbid' : 'track.sync'
+
+		const results = await enqueueJobs(
+			tracksToEnqueue.map((track) => ({
+				jobType,
+				entityType: 'track' as MbEnrichmentEntityType,
+				entityId: track.id,
+				priority: 5, // Medium priority for bulk requests
+			}))
+		)
+
+		const created = results.filter((r) => r.created).length
+		const skipped = results.filter((r) => !r.created).length
+
+		return ctx.json(
+			{
+				message: `Enqueued ${created} jobs, ${skipped} already existed`,
+				total: tracksToEnqueue.length,
+				created,
+				skipped,
+				jobType,
+				jobIds: results.filter((r) => r.created).map((r) => r.jobId),
+			},
+			202
+		)
+	} catch (error) {
+		console.error('[Sync] Error in bulk track enqueue:', error)
+		return ctx.json({ error: 'Bulk enqueue failed' }, 500)
+	}
+})
+
+// =============================================================================
+// Entity Job History
+// =============================================================================
+
+/**
+ * GET /api/sync/artists/:id/jobs
+ *
+ * Get recent jobs for an artist.
+ */
+sync.get('/artists/:id/jobs', async (ctx) => {
+	const artistId = ctx.req.param('id')
 	const limitParam = ctx.req.query('limit')
 	const limit = Math.min(parseInt(limitParam || '10', 10), 50)
 
 	try {
-		// Find tracks with MBIDs
-		const tracksToSync = await db.query.tracks.findMany({
-			where: (t, { isNotNull }) => isNotNull(t.mbid),
-			columns: { id: true, title: true, mbid: true },
-			limit,
-		})
-
-		const results = {
-			total: tracksToSync.length,
-			synced: 0,
-			failed: 0,
-			details: [] as Array<{
-				trackId: string
-				title: string
-				mbid: string
-				success: boolean
-				error?: string
-			}>,
-		}
-
-		for (const track of tracksToSync) {
-			if (!track.mbid) continue
-
-			try {
-				const syncResult = await syncTrackById(track.id)
-
-				if (syncResult.errors.length === 0) {
-					results.synced++
-					results.details.push({
-						trackId: track.id,
-						title: track.title,
-						mbid: track.mbid,
-						success: true,
-					})
-				} else {
-					results.failed++
-					results.details.push({
-						trackId: track.id,
-						title: track.title,
-						mbid: track.mbid,
-						success: false,
-						error: syncResult.errors.join(', '),
-					})
-				}
-			} catch (error) {
-				results.failed++
-				const message =
-					error instanceof Error ? error.message : String(error)
-				results.details.push({
-					trackId: track.id,
-					title: track.title,
-					mbid: track.mbid,
-					success: false,
-					error: message,
-				})
-			}
-		}
-
-		return ctx.json(results)
+		const jobs = await getJobsForEntity('artist', artistId, limit)
+		return ctx.json({ entityType: 'artist', entityId: artistId, jobs })
 	} catch (error) {
-		console.error('[Sync] Error in bulk track sync:', error)
-		return ctx.json({ error: 'Bulk sync failed' }, 500)
+		console.error('[Sync] Error getting artist jobs:', error)
+		return ctx.json({ error: 'Failed to get jobs' }, 500)
+	}
+})
+
+/**
+ * GET /api/sync/albums/:id/jobs
+ *
+ * Get recent jobs for an album.
+ */
+sync.get('/albums/:id/jobs', async (ctx) => {
+	const albumId = ctx.req.param('id')
+	const limitParam = ctx.req.query('limit')
+	const limit = Math.min(parseInt(limitParam || '10', 10), 50)
+
+	try {
+		const jobs = await getJobsForEntity('album', albumId, limit)
+		return ctx.json({ entityType: 'album', entityId: albumId, jobs })
+	} catch (error) {
+		console.error('[Sync] Error getting album jobs:', error)
+		return ctx.json({ error: 'Failed to get jobs' }, 500)
+	}
+})
+
+/**
+ * GET /api/sync/tracks/:id/jobs
+ *
+ * Get recent jobs for a track.
+ */
+sync.get('/tracks/:id/jobs', async (ctx) => {
+	const trackId = ctx.req.param('id')
+	const limitParam = ctx.req.query('limit')
+	const limit = Math.min(parseInt(limitParam || '10', 10), 50)
+
+	try {
+		const jobs = await getJobsForEntity('track', trackId, limit)
+		return ctx.json({ entityType: 'track', entityId: trackId, jobs })
+	} catch (error) {
+		console.error('[Sync] Error getting track jobs:', error)
+		return ctx.json({ error: 'Failed to get jobs' }, 500)
 	}
 })
 

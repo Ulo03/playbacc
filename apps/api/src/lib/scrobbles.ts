@@ -32,7 +32,7 @@ import {
 	type SpotifyTrack,
 } from './spotify'
 import { MusicBrainzCache } from './musicbrainz'
-import { syncArtistRelationshipsByMbid } from './sync'
+import { enqueueJob } from './mb-enrichment-queue'
 import type { MusicBrainzRecordingDetails } from '@playbacc/types/api/musicbrainz'
 
 /**
@@ -706,28 +706,27 @@ export async function resolveTrackMetadataFromSpotify(
 }
 
 /**
- * Triggers auto-sync for an artist's MusicBrainz relationships.
- * Runs asynchronously (fire-and-forget) to not block the main flow.
+ * Enqueues an artist relationship sync job for background processing.
+ * The actual sync is performed by the MusicBrainz enrichment worker.
  *
- * @param mbid - MusicBrainz artist ID
+ * @param artistId - Artist database ID
  */
-function triggerAutoSync(mbid: string): void {
+function enqueueArtistSync(artistId: string): void {
 	// Fire-and-forget: don't await, just log errors
-	syncArtistRelationshipsByMbid(mbid)
+	enqueueJob({
+		jobType: 'artist.sync_relationships',
+		entityType: 'artist',
+		entityId: artistId,
+		priority: 1, // Higher priority for newly created/updated artists
+	})
 		.then((result) => {
-			if (result.errors.length > 0) {
-				console.warn(
-					`[AutoSync] Completed with errors for ${mbid}:`,
-					result.errors
-				)
-			} else {
-				console.log(
-					`[AutoSync] Synced ${mbid}: type=${result.artistType}, memberships=${result.membershipsInserted}/${result.membershipsProcessed}`
-				)
+			if (result.created) {
+				console.log(`[Scrobble] Enqueued artist sync job: ${artistId}`)
 			}
+			// If not created, job already exists - that's fine
 		})
 		.catch((error) => {
-			console.error(`[AutoSync] Failed for ${mbid}:`, error)
+			console.error(`[Scrobble] Failed to enqueue artist sync for ${artistId}:`, error)
 		})
 }
 
@@ -775,8 +774,8 @@ async function upsertArtist(
 				.set({ mbid })
 				.where(eq(artists.id, existingByName.id))
 
-			// Trigger auto-sync for newly attached MBID
-			triggerAutoSync(mbid)
+			// Enqueue artist sync for newly attached MBID
+			enqueueArtistSync(existingByName.id)
 		}
 		return existingByName.id
 	}
@@ -805,9 +804,9 @@ async function upsertArtist(
 		.values({ name, mbid, image_url: imageUrl })
 		.returning()
 
-	// Trigger auto-sync for new artist with MBID
+	// Enqueue artist sync for new artist with MBID
 	if (mbid) {
-		triggerAutoSync(mbid)
+		enqueueArtistSync(newArtist.id)
 	}
 
 	return newArtist.id

@@ -16,6 +16,9 @@ import {
 	artistTypeEnum,
 	genderEnum,
 	importStatusEnum,
+	mbEnrichmentEntityTypeEnum,
+	mbEnrichmentJobStatusEnum,
+	mbEnrichmentJobTypeEnum,
 	userRoleEnum,
 } from './enums'
 
@@ -57,6 +60,8 @@ export const artists = pgTable('artists', {
 	/** Death date for Person, dissolution date for Group */
 	end_date: text('end_date'),
 	image_url: text('image_url'),
+	/** Last time MusicBrainz enrichment was performed */
+	mb_last_enriched_at: timestamp('mb_last_enriched_at', { withTimezone: true }),
 })
 
 // Artists Groups Table - tracks group memberships with time periods
@@ -104,6 +109,8 @@ export const albums = pgTable('albums', {
 	release_date: date('release_date'),
 	image_url: text('image_url'),
 	mbid: text('mbid').unique(),
+	/** Last time MusicBrainz enrichment was performed */
+	mb_last_enriched_at: timestamp('mb_last_enriched_at', { withTimezone: true }),
 })
 
 // Tracks Table
@@ -114,6 +121,8 @@ export const tracks = pgTable('tracks', {
 	mbid: text('mbid').unique(),
 	isrc: text('isrc').unique(),
 	explicit: boolean('explicit').notNull().default(false),
+	/** Last time MusicBrainz enrichment was performed */
+	mb_last_enriched_at: timestamp('mb_last_enriched_at', { withTimezone: true }),
 })
 
 // Track Artists Table
@@ -273,5 +282,55 @@ export const playback_sessions = pgTable(
 			name: 'playback_sessions_pk',
 			columns: [table.user_id, table.provider],
 		}),
+	]
+)
+
+// MusicBrainz Enrichment Jobs Table - background job queue for MB metadata enrichment
+// Jobs are enqueued when entities are created/updated and processed by the MB worker
+export const mb_enrichment_jobs = pgTable(
+	'mb_enrichment_jobs',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		/** Type of enrichment job to perform */
+		job_type: mbEnrichmentJobTypeEnum('job_type').notNull(),
+		/** Entity type (artist, album, track) */
+		entity_type: mbEnrichmentEntityTypeEnum('entity_type').notNull(),
+		/** ID of the entity to enrich */
+		entity_id: uuid('entity_id').notNull(),
+		/** Job status */
+		status: mbEnrichmentJobStatusEnum('status').notNull().default('pending'),
+		/** Priority (higher = processed first) */
+		priority: integer('priority').notNull().default(0),
+		/** Number of attempts made */
+		attempts: integer('attempts').notNull().default(0),
+		/** Maximum attempts before marking as permanently failed */
+		max_attempts: integer('max_attempts').notNull().default(3),
+		/** Don't run before this time (for retry backoff) */
+		run_after: timestamp('run_after', { withTimezone: true }).notNull().defaultNow(),
+		/** When job was locked for processing */
+		locked_at: timestamp('locked_at', { withTimezone: true }),
+		/** Worker instance that locked this job */
+		locked_by: text('locked_by'),
+		/** Last error message if failed */
+		last_error: text('last_error'),
+		created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+	},
+	(table) => [
+		// Index for efficient job claiming (pending jobs ready to run, ordered by priority)
+		index('idx_mb_jobs_claimable').on(
+			table.status,
+			table.run_after,
+			table.priority
+		),
+		// Index for cleanup queries (by status and updated_at)
+		index('idx_mb_jobs_cleanup').on(table.status, table.updated_at),
+		// Index for deduplication checks (find active jobs for same entity)
+		index('idx_mb_jobs_entity').on(
+			table.job_type,
+			table.entity_type,
+			table.entity_id,
+			table.status
+		),
 	]
 )
