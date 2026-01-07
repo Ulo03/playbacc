@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { Link } from '@tanstack/react-router'
 import { useAuth } from '@/lib/auth'
 import { useApiStatus } from '@/hooks/use-api-status'
 import { Button } from '@/components/ui/button'
@@ -402,16 +403,6 @@ export function DashboardPage() {
 
 			{/* Main content */}
 			<main className="container mx-auto px-4 py-8">
-				<div className="mb-8">
-					<h1 className="text-2xl font-bold tracking-tight mb-1">
-						Welcome back,{' '}
-						{user?.username ?? user?.email?.split('@')[0]}
-					</h1>
-					<p className="text-muted-foreground text-sm">
-						Your listening activity dashboard
-					</p>
-				</div>
-
 				<Card className="max-w-md">
 					<CardContent>
 						<h3 className="text-sm font-medium mb-3 text-muted-foreground flex items-center gap-2">
@@ -604,9 +595,11 @@ export function DashboardPage() {
 							  topGroups.items.length > 0 ? (
 								<div className="space-y-1">
 									{topGroups.items.map((artist, index) => (
-										<div
+										<Link
 											key={artist.id}
-											className="flex items-center gap-3 py-2 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
+											to="/artist/$artistId"
+											params={{ artistId: artist.id }}
+											className="flex items-center gap-3 py-2 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors"
 										>
 											<span className="text-xs text-muted-foreground w-4 text-right tabular-nums">
 												{index + 1}
@@ -633,7 +626,7 @@ export function DashboardPage() {
 													)}
 												</p>
 											</div>
-										</div>
+										</Link>
 									))}
 								</div>
 							) : (
@@ -674,9 +667,11 @@ export function DashboardPage() {
 								<div className="space-y-1">
 									{topSoloArtists.items.map(
 										(artist, index) => (
-											<div
+											<Link
 												key={artist.id}
-												className="flex items-center gap-3 py-2 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
+												to="/artist/$artistId"
+												params={{ artistId: artist.id }}
+												className="flex items-center gap-3 py-2 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors"
 											>
 												<span className="text-xs text-muted-foreground w-4 text-right tabular-nums">
 													{index + 1}
@@ -704,7 +699,7 @@ export function DashboardPage() {
 														)}
 													</p>
 												</div>
-											</div>
+											</Link>
 										)
 									)}
 								</div>
