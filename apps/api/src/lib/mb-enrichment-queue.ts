@@ -227,7 +227,9 @@ export async function claimJobs(
 	)
 
 	// Use a single query to claim jobs atomically
-	// This selects pending jobs ready to run, ordered by priority (desc), then created_at (asc)
+	// The subquery uses FOR UPDATE SKIP LOCKED to prevent race conditions:
+	// - FOR UPDATE: locks selected rows so other workers can't claim them
+	// - SKIP LOCKED: skips rows already locked by other workers instead of waiting
 	const claimedJobs = await db
 		.update(mb_enrichment_jobs)
 		.set({
@@ -274,6 +276,7 @@ export async function claimJobs(
 							sql`${mb_enrichment_jobs.created_at} ASC`
 						)
 						.limit(batchSize)
+						.for('update', { skipLocked: true })
 				)
 			)
 		)
