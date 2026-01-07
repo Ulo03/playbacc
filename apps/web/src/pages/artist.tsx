@@ -1,9 +1,18 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, Link, getRouteApi } from '@tanstack/react-router'
 import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { ArrowLeft, Users, User, Calendar, ChevronDown, RefreshCw, Check, AlertCircle } from 'lucide-react'
+import {
+	ArrowLeft,
+	Users,
+	User,
+	Calendar,
+	ChevronDown,
+	RefreshCw,
+	Check,
+	AlertCircle,
+} from 'lucide-react'
 
 interface MemberInfo {
 	id: string
@@ -133,11 +142,17 @@ export function ArtistPage() {
 	const [isLoading, setIsLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
 	const [currentMembersExpanded, setCurrentMembersExpanded] = useState(false)
-	const [previousMembersExpanded, setPreviousMembersExpanded] = useState(false)
+	const [previousMembersExpanded, setPreviousMembersExpanded] =
+		useState(false)
 	const [groupsExpanded, setGroupsExpanded] = useState(false)
 	const [isSyncing, setIsSyncing] = useState(false)
-	const [syncStatus, setSyncStatus] = useState<'idle' | 'success' | 'error'>('idle')
-	const [memberSyncStates, setMemberSyncStates] = useState<Record<string, 'idle' | 'syncing' | 'success' | 'error'>>({})
+	const [syncStatus, setSyncStatus] = useState<'idle' | 'success' | 'error'>(
+		'idle'
+	)
+	const [memberSyncStates, setMemberSyncStates] = useState<
+		Record<string, 'idle' | 'syncing' | 'success' | 'error'>
+	>({})
+	const memberSyncTimeoutsRef = useRef<Record<string, number>>({})
 
 	const fetchArtist = useCallback(async () => {
 		if (!token) return
@@ -175,35 +190,54 @@ export function ArtistPage() {
 		fetchArtist()
 	}, [fetchArtist])
 
-	const pollJobStatus = useCallback(async (jobId: string): Promise<boolean> => {
-		if (!token) return false
-		
-		const maxAttempts = 30 // 30 * 2s = 60s max wait
-		const pollInterval = 2000 // 2 seconds
-		
-		for (let attempt = 0; attempt < maxAttempts; attempt++) {
-			try {
-				const response = await fetch(`${API_URL}/api/sync/jobs/${jobId}`, {
-					headers: { Authorization: `Bearer ${token}` },
-				})
-				
-				if (!response.ok) return false
-				
-				const job = await response.json()
-				
-				if (job.status === 'succeeded') {
-					return true
-				} else if (job.status === 'failed') {
-					return false
-				}
-				// Still pending or running, wait and try again
-				await new Promise(resolve => setTimeout(resolve, pollInterval))
-			} catch {
-				return false
+	// Cleanup member sync timeouts on unmount
+	useEffect(() => {
+		return () => {
+			for (const timeoutId of Object.values(
+				memberSyncTimeoutsRef.current
+			)) {
+				clearTimeout(timeoutId)
 			}
 		}
-		return false // Timeout
-	}, [token])
+	}, [])
+
+	const pollJobStatus = useCallback(
+		async (jobId: string): Promise<boolean> => {
+			if (!token) return false
+
+			const maxAttempts = 30 // 30 * 2s = 60s max wait
+			const pollInterval = 2000 // 2 seconds
+
+			for (let attempt = 0; attempt < maxAttempts; attempt++) {
+				try {
+					const response = await fetch(
+						`${API_URL}/api/sync/jobs/${jobId}`,
+						{
+							headers: { Authorization: `Bearer ${token}` },
+						}
+					)
+
+					if (!response.ok) return false
+
+					const job = await response.json()
+
+					if (job.status === 'succeeded') {
+						return true
+					} else if (job.status === 'failed') {
+						return false
+					}
+					// Still pending or running, wait and try again
+					await new Promise((resolve) =>
+						setTimeout(resolve, pollInterval)
+					)
+				} catch {
+					return false
+				}
+			}
+			return false // Timeout
+		},
+		[token]
+	)
 
 	const syncWithMusicBrainz = useCallback(async () => {
 		if (!token || isSyncing) return
@@ -212,12 +246,15 @@ export function ArtistPage() {
 		setSyncStatus('idle')
 
 		try {
-			const response = await fetch(`${API_URL}/api/sync/artists/${artistId}`, {
-				method: 'POST',
-				headers: {
-					Authorization: `Bearer ${token}`,
-				},
-			})
+			const response = await fetch(
+				`${API_URL}/api/sync/artists/${artistId}`,
+				{
+					method: 'POST',
+					headers: {
+						Authorization: `Bearer ${token}`,
+					},
+				}
+			)
 
 			if (!response.ok) {
 				throw new Error('Sync request failed')
@@ -256,55 +293,93 @@ export function ArtistPage() {
 		}
 	}, [artistId, token, isSyncing, fetchArtist, pollJobStatus])
 
-	const syncMember = useCallback(async (memberId: string, e: React.MouseEvent) => {
-		e.preventDefault() // Prevent navigation when clicking sync button
-		e.stopPropagation()
-		
-		if (!token || memberSyncStates[memberId] === 'syncing') return
+	const syncMember = useCallback(
+		async (memberId: string, e: React.MouseEvent) => {
+			e.preventDefault() // Prevent navigation when clicking sync button
+			e.stopPropagation()
 
-		setMemberSyncStates(prev => ({ ...prev, [memberId]: 'syncing' }))
+			if (!token || memberSyncStates[memberId] === 'syncing') return
 
-		try {
-			const response = await fetch(`${API_URL}/api/sync/artists/${memberId}`, {
-				method: 'POST',
-				headers: {
-					Authorization: `Bearer ${token}`,
-				},
-			})
+			setMemberSyncStates((prev) => ({ ...prev, [memberId]: 'syncing' }))
 
-			if (!response.ok) {
-				throw new Error('Sync request failed')
-			}
+			try {
+				const response = await fetch(
+					`${API_URL}/api/sync/artists/${memberId}`,
+					{
+						method: 'POST',
+						headers: {
+							Authorization: `Bearer ${token}`,
+						},
+					}
+				)
 
-			const data = await response.json()
-
-			// Poll job status if we got a job ID - keep syncing state until done
-			if (data.jobId) {
-				const succeeded = await pollJobStatus(data.jobId)
-				if (succeeded) {
-					setMemberSyncStates(prev => ({ ...prev, [memberId]: 'success' }))
-					fetchArtist() // Refresh to show updated member data
-				} else {
-					setMemberSyncStates(prev => ({ ...prev, [memberId]: 'error' }))
+				if (!response.ok) {
+					throw new Error('Sync request failed')
 				}
-			} else {
-				// No job ID means sync was immediate or skipped
-				setMemberSyncStates(prev => ({ ...prev, [memberId]: 'success' }))
-			}
 
-			// Reset status after 3 seconds
-			setTimeout(() => {
-				setMemberSyncStates(prev => ({ ...prev, [memberId]: 'idle' }))
-			}, 3000)
-		} catch (err) {
-			console.error('Error syncing member:', err)
-			setMemberSyncStates(prev => ({ ...prev, [memberId]: 'error' }))
-			// Reset status after 3 seconds
-			setTimeout(() => {
-				setMemberSyncStates(prev => ({ ...prev, [memberId]: 'idle' }))
-			}, 3000)
-		}
-	}, [token, memberSyncStates, pollJobStatus, fetchArtist])
+				const data = await response.json()
+
+				// Poll job status if we got a job ID - keep syncing state until done
+				if (data.jobId) {
+					const succeeded = await pollJobStatus(data.jobId)
+					if (succeeded) {
+						setMemberSyncStates((prev) => ({
+							...prev,
+							[memberId]: 'success',
+						}))
+						fetchArtist() // Refresh to show updated member data
+					} else {
+						setMemberSyncStates((prev) => ({
+							...prev,
+							[memberId]: 'error',
+						}))
+					}
+				} else {
+					// No job ID means sync was immediate or skipped
+					setMemberSyncStates((prev) => ({
+						...prev,
+						[memberId]: 'success',
+					}))
+				}
+
+				// Reset status after 3 seconds
+				if (memberSyncTimeoutsRef.current[memberId]) {
+					clearTimeout(memberSyncTimeoutsRef.current[memberId])
+				}
+				memberSyncTimeoutsRef.current[memberId] = window.setTimeout(
+					() => {
+						setMemberSyncStates((prev) => ({
+							...prev,
+							[memberId]: 'idle',
+						}))
+						delete memberSyncTimeoutsRef.current[memberId]
+					},
+					3000
+				)
+			} catch (err) {
+				console.error('Error syncing member:', err)
+				setMemberSyncStates((prev) => ({
+					...prev,
+					[memberId]: 'error',
+				}))
+				// Reset status after 3 seconds
+				if (memberSyncTimeoutsRef.current[memberId]) {
+					clearTimeout(memberSyncTimeoutsRef.current[memberId])
+				}
+				memberSyncTimeoutsRef.current[memberId] = window.setTimeout(
+					() => {
+						setMemberSyncStates((prev) => ({
+							...prev,
+							[memberId]: 'idle',
+						}))
+						delete memberSyncTimeoutsRef.current[memberId]
+					},
+					3000
+				)
+			}
+		},
+		[token, memberSyncStates, pollJobStatus, fetchArtist]
+	)
 
 	const isGroup = artist?.type === 'group'
 	const hasMembers =
@@ -455,7 +530,13 @@ export function ArtistPage() {
 									<RefreshCw className="size-4" />
 								)}
 								<span className="ml-2 hidden sm:inline">
-									{isSyncing ? 'Syncing...' : syncStatus === 'success' ? 'Synced!' : syncStatus === 'error' ? 'Failed' : 'Sync'}
+									{isSyncing
+										? 'Syncing...'
+										: syncStatus === 'success'
+											? 'Synced!'
+											: syncStatus === 'error'
+												? 'Failed'
+												: 'Sync'}
 								</span>
 							</Button>
 						</div>
@@ -467,20 +548,29 @@ export function ArtistPage() {
 									<Card>
 										<CardContent className="p-0">
 											<button
-												onClick={() => setCurrentMembersExpanded(!currentMembersExpanded)}
+												onClick={() =>
+													setCurrentMembersExpanded(
+														!currentMembersExpanded
+													)
+												}
 												className="w-full p-4 flex items-center justify-between hover:bg-muted/30 transition-colors rounded-lg"
 											>
 												<h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
 													<Users className="size-4" />
 													Current Members
 													<span className="text-xs bg-muted px-1.5 py-0.5 rounded">
-														{artist.members.current.length}
+														{
+															artist.members
+																.current.length
+														}
 													</span>
 												</h3>
-												<ChevronDown 
+												<ChevronDown
 													className={`size-4 text-muted-foreground transition-transform duration-200 ${
-														currentMembersExpanded ? 'rotate-180' : ''
-													}`} 
+														currentMembersExpanded
+															? 'rotate-180'
+															: ''
+													}`}
 												/>
 											</button>
 											{currentMembersExpanded && (
@@ -532,16 +622,41 @@ export function ArtistPage() {
 																	)}
 																</div>
 																<button
-																	onClick={(e) => syncMember(member.id, e)}
-																	disabled={memberSyncStates[member.id] === 'syncing'}
+																	onClick={(
+																		e
+																	) =>
+																		syncMember(
+																			member.id,
+																			e
+																		)
+																	}
+																	disabled={
+																		memberSyncStates[
+																			member
+																				.id
+																		] ===
+																		'syncing'
+																	}
 																	className="p-1.5 rounded-md hover:bg-muted transition-colors"
 																	title="Sync member metadata"
 																>
-																	{memberSyncStates[member.id] === 'syncing' ? (
+																	{memberSyncStates[
+																		member
+																			.id
+																	] ===
+																	'syncing' ? (
 																		<RefreshCw className="size-4 animate-spin text-muted-foreground" />
-																	) : memberSyncStates[member.id] === 'success' ? (
+																	) : memberSyncStates[
+																			member
+																				.id
+																	  ] ===
+																	  'success' ? (
 																		<Check className="size-4 text-green-500" />
-																	) : memberSyncStates[member.id] === 'error' ? (
+																	) : memberSyncStates[
+																			member
+																				.id
+																	  ] ===
+																	  'error' ? (
 																		<AlertCircle className="size-4 text-red-500" />
 																	) : (
 																		<RefreshCw className="size-4 text-muted-foreground" />
@@ -560,20 +675,29 @@ export function ArtistPage() {
 									<Card>
 										<CardContent className="p-0">
 											<button
-												onClick={() => setPreviousMembersExpanded(!previousMembersExpanded)}
+												onClick={() =>
+													setPreviousMembersExpanded(
+														!previousMembersExpanded
+													)
+												}
 												className="w-full p-4 flex items-center justify-between hover:bg-muted/30 transition-colors rounded-lg"
 											>
 												<h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
 													<Users className="size-4" />
 													Previous Members
 													<span className="text-xs bg-muted px-1.5 py-0.5 rounded">
-														{artist.members.previous.length}
+														{
+															artist.members
+																.previous.length
+														}
 													</span>
 												</h3>
-												<ChevronDown 
+												<ChevronDown
 													className={`size-4 text-muted-foreground transition-transform duration-200 ${
-														previousMembersExpanded ? 'rotate-180' : ''
-													}`} 
+														previousMembersExpanded
+															? 'rotate-180'
+															: ''
+													}`}
 												/>
 											</button>
 											{previousMembersExpanded && (
@@ -625,16 +749,41 @@ export function ArtistPage() {
 																	)}
 																</div>
 																<button
-																	onClick={(e) => syncMember(member.id, e)}
-																	disabled={memberSyncStates[member.id] === 'syncing'}
+																	onClick={(
+																		e
+																	) =>
+																		syncMember(
+																			member.id,
+																			e
+																		)
+																	}
+																	disabled={
+																		memberSyncStates[
+																			member
+																				.id
+																		] ===
+																		'syncing'
+																	}
 																	className="p-1.5 rounded-md hover:bg-muted transition-colors"
 																	title="Sync member metadata"
 																>
-																	{memberSyncStates[member.id] === 'syncing' ? (
+																	{memberSyncStates[
+																		member
+																			.id
+																	] ===
+																	'syncing' ? (
 																		<RefreshCw className="size-4 animate-spin text-muted-foreground" />
-																	) : memberSyncStates[member.id] === 'success' ? (
+																	) : memberSyncStates[
+																			member
+																				.id
+																	  ] ===
+																	  'success' ? (
 																		<Check className="size-4 text-green-500" />
-																	) : memberSyncStates[member.id] === 'error' ? (
+																	) : memberSyncStates[
+																			member
+																				.id
+																	  ] ===
+																	  'error' ? (
 																		<AlertCircle className="size-4 text-red-500" />
 																	) : (
 																		<RefreshCw className="size-4 text-muted-foreground" />
@@ -670,20 +819,28 @@ export function ArtistPage() {
 							<Card>
 								<CardContent className="p-0">
 									<button
-										onClick={() => setGroupsExpanded(!groupsExpanded)}
+										onClick={() =>
+											setGroupsExpanded(!groupsExpanded)
+										}
 										className="w-full p-4 flex items-center justify-between hover:bg-muted/30 transition-colors rounded-lg"
 									>
 										<h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
 											<Users className="size-4" />
 											Member of
 											<span className="text-xs bg-muted px-1.5 py-0.5 rounded">
-												{(artist as PersonArtistResponse).groups.length}
+												{
+													(
+														artist as PersonArtistResponse
+													).groups.length
+												}
 											</span>
 										</h3>
-										<ChevronDown 
+										<ChevronDown
 											className={`size-4 text-muted-foreground transition-transform duration-200 ${
-												groupsExpanded ? 'rotate-180' : ''
-											}`} 
+												groupsExpanded
+													? 'rotate-180'
+													: ''
+											}`}
 										/>
 									</button>
 									{groupsExpanded && (
@@ -701,7 +858,9 @@ export function ArtistPage() {
 												>
 													{group.image_url ? (
 														<img
-															src={group.image_url}
+															src={
+																group.image_url
+															}
 															alt={group.name}
 															className="w-10 h-10 rounded-full object-cover"
 														/>
@@ -729,16 +888,31 @@ export function ArtistPage() {
 														)}
 													</div>
 													<button
-														onClick={(e) => syncMember(group.id, e)}
-														disabled={memberSyncStates[group.id] === 'syncing'}
+														onClick={(e) =>
+															syncMember(
+																group.id,
+																e
+															)
+														}
+														disabled={
+															memberSyncStates[
+																group.id
+															] === 'syncing'
+														}
 														className="p-1.5 rounded-md hover:bg-muted transition-colors"
 														title="Sync group metadata"
 													>
-														{memberSyncStates[group.id] === 'syncing' ? (
+														{memberSyncStates[
+															group.id
+														] === 'syncing' ? (
 															<RefreshCw className="size-4 animate-spin text-muted-foreground" />
-														) : memberSyncStates[group.id] === 'success' ? (
+														) : memberSyncStates[
+																group.id
+														  ] === 'success' ? (
 															<Check className="size-4 text-green-500" />
-														) : memberSyncStates[group.id] === 'error' ? (
+														) : memberSyncStates[
+																group.id
+														  ] === 'error' ? (
 															<AlertCircle className="size-4 text-red-500" />
 														) : (
 															<RefreshCw className="size-4 text-muted-foreground" />
