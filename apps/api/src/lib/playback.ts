@@ -278,52 +278,44 @@ export async function finalizeSession(
 	const playedAt = new Date()
 
 	try {
-		// Resolve track metadata from stored Spotify data (needed for track lookup)
+		// Check for duplicate scrobble BEFORE resolving metadata (avoids unnecessary MusicBrainz calls)
+		// Use ISRC from stored session metadata for efficient lookup
+		const isrc = session.track_metadata.external_ids?.isrc
+		if (isrc) {
+			const existingTrack = await db.query.tracks.findFirst({
+				where: (t, { eq }) => eq(t.isrc, isrc),
+			})
+
+			if (existingTrack) {
+				const existingScrobble = await db.query.scrobbles.findFirst({
+					where: (s, { eq, and, between }) =>
+						and(
+							eq(s.user_id, userId),
+							eq(s.track_id, existingTrack.id),
+							eq(s.provider, 'spotify'),
+							// Check within a window that covers from started_at to playedAt (+ buffer)
+							between(
+								s.played_at,
+								new Date(session.started_at.getTime() - 5000),
+								new Date(playedAt.getTime() + 5000)
+							)
+						),
+				})
+
+				if (existingScrobble) {
+					console.log(
+						`[Playback] Scrobble already exists for track "${session.track_metadata.name}" in session started at ${session.started_at.toISOString()}`
+					)
+					return false
+				}
+			}
+		}
+
+		// Now resolve full metadata (only if we're actually going to scrobble)
 		const metadata = await resolveTrackMetadataFromSpotify(
 			session.track_metadata,
 			mbCache
 		)
-
-		// Get or create the track to get its ID for dedupe check
-		// Note: We need the track ID to properly check for duplicate scrobbles
-		const existingTrack = await db.query.tracks.findFirst({
-			where: (t, { eq, or }) => {
-				if (metadata.isrc && metadata.mbid) {
-					return or(eq(t.isrc, metadata.isrc), eq(t.mbid, metadata.mbid))
-				} else if (metadata.isrc) {
-					return eq(t.isrc, metadata.isrc)
-				} else if (metadata.mbid) {
-					return eq(t.mbid, metadata.mbid)
-				}
-				return undefined
-			},
-		})
-
-		// Check if we already have this scrobble in DB (dedupe by user_id, track, and time window)
-		// We check around started_at since that's the stable identifier for this play session
-		if (existingTrack) {
-			const existingScrobble = await db.query.scrobbles.findFirst({
-				where: (s, { eq, and, between }) =>
-					and(
-						eq(s.user_id, userId),
-						eq(s.track_id, existingTrack.id),
-						eq(s.provider, 'spotify'),
-						// Check within a window that covers from started_at to playedAt (+ buffer)
-						between(
-							s.played_at,
-							new Date(session.started_at.getTime() - 5000),
-							new Date(playedAt.getTime() + 5000)
-						)
-					),
-			})
-
-			if (existingScrobble) {
-				console.log(
-					`[Playback] Scrobble already exists for track "${metadata.title}" in session started at ${session.started_at.toISOString()}`
-				)
-				return false
-			}
-		}
 
 		// Calculate effective accumulated time (with end margin applied)
 		const effectiveAccumulatedMs = getEffectiveAccumulatedMs(
