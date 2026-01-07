@@ -154,6 +154,7 @@ export function ArtistPage() {
 	>({})
 	const memberSyncTimeoutsRef = useRef<Record<string, number>>({})
 	const pollAbortControllersRef = useRef<AbortController[]>([])
+	const syncTimeoutRef = useRef<number | null>(null)
 
 	const fetchArtist = useCallback(async () => {
 		if (!token) return
@@ -194,11 +195,15 @@ export function ArtistPage() {
 	// Cleanup member sync timeouts and polling operations on unmount
 	useEffect(() => {
 		return () => {
-			// Clear all timeouts
+			// Clear all member sync timeouts
 			for (const timeoutId of Object.values(
 				memberSyncTimeoutsRef.current
 			)) {
 				clearTimeout(timeoutId)
+			}
+			// Clear main sync timeout
+			if (syncTimeoutRef.current !== null) {
+				clearTimeout(syncTimeoutRef.current)
 			}
 			// Abort all ongoing polling operations
 			for (const controller of pollAbortControllersRef.current) {
@@ -272,6 +277,12 @@ export function ArtistPage() {
 	const syncWithMusicBrainz = useCallback(async () => {
 		if (!token || isSyncing) return
 
+		// Clear any existing sync status timeout
+		if (syncTimeoutRef.current !== null) {
+			clearTimeout(syncTimeoutRef.current)
+			syncTimeoutRef.current = null
+		}
+
 		setIsSyncing(true)
 		setSyncStatus('idle')
 
@@ -313,16 +324,18 @@ export function ArtistPage() {
 			}
 
 			// Reset status after 3 seconds
-			setTimeout(() => {
+			syncTimeoutRef.current = window.setTimeout(() => {
 				setSyncStatus('idle')
+				syncTimeoutRef.current = null
 			}, 3000)
 		} catch (err) {
 			console.error('Error syncing artist:', err)
 			setSyncStatus('error')
 			setIsSyncing(false)
 			// Reset status after 3 seconds
-			setTimeout(() => {
+			syncTimeoutRef.current = window.setTimeout(() => {
 				setSyncStatus('idle')
+				syncTimeoutRef.current = null
 			}, 3000)
 		} finally {
 			// Remove abort controller from tracking
