@@ -153,6 +153,7 @@ export function ArtistPage() {
 		Record<string, 'idle' | 'syncing' | 'success' | 'error'>
 	>({})
 	const memberSyncTimeoutsRef = useRef<Record<string, number>>({})
+	const pollAbortControllersRef = useRef<AbortController[]>([])
 
 	const fetchArtist = useCallback(async () => {
 		if (!token) return
@@ -190,30 +191,41 @@ export function ArtistPage() {
 		fetchArtist()
 	}, [fetchArtist])
 
-	// Cleanup member sync timeouts on unmount
+	// Cleanup member sync timeouts and polling operations on unmount
 	useEffect(() => {
 		return () => {
+			// Clear all timeouts
 			for (const timeoutId of Object.values(
 				memberSyncTimeoutsRef.current
 			)) {
 				clearTimeout(timeoutId)
 			}
+			// Abort all ongoing polling operations
+			for (const controller of pollAbortControllersRef.current) {
+				controller.abort()
+			}
 		}
 	}, [])
 
 	const pollJobStatus = useCallback(
-		async (jobId: string): Promise<boolean> => {
+		async (jobId: string, signal: AbortSignal): Promise<boolean> => {
 			if (!token) return false
 
 			const maxAttempts = 30 // 30 * 2s = 60s max wait
 			const pollInterval = 2000 // 2 seconds
 
 			for (let attempt = 0; attempt < maxAttempts; attempt++) {
+				// Check if aborted before starting fetch
+				if (signal.aborted) {
+					return false
+				}
+
 				try {
 					const response = await fetch(
 						`${API_URL}/api/sync/jobs/${jobId}`,
 						{
 							headers: { Authorization: `Bearer ${token}` },
+							signal,
 						}
 					)
 
@@ -226,11 +238,29 @@ export function ArtistPage() {
 					} else if (job.status === 'failed') {
 						return false
 					}
+
+					// Check if aborted before waiting
+					if (signal.aborted) {
+						return false
+					}
+
 					// Still pending or running, wait and try again
-					await new Promise((resolve) =>
-						setTimeout(resolve, pollInterval)
-					)
-				} catch {
+					await new Promise((resolve, reject) => {
+						const timeout = setTimeout(resolve, pollInterval)
+						// Listen for abort during the wait
+						signal.addEventListener('abort', () => {
+							clearTimeout(timeout)
+							reject(new Error('Aborted'))
+						})
+					})
+				} catch (error) {
+					// If aborted, return false cleanly
+					if (error instanceof Error && error.name === 'AbortError') {
+						return false
+					}
+					if (error instanceof Error && error.message === 'Aborted') {
+						return false
+					}
 					return false
 				}
 			}
@@ -244,6 +274,10 @@ export function ArtistPage() {
 
 		setIsSyncing(true)
 		setSyncStatus('idle')
+
+		// Create abort controller for polling
+		const abortController = new AbortController()
+		pollAbortControllersRef.current.push(abortController)
 
 		try {
 			const response = await fetch(
@@ -264,7 +298,7 @@ export function ArtistPage() {
 
 			// Poll job status if we got a job ID - keep syncing state until done
 			if (data.jobId) {
-				const succeeded = await pollJobStatus(data.jobId)
+				const succeeded = await pollJobStatus(data.jobId, abortController.signal)
 				setIsSyncing(false)
 				if (succeeded) {
 					setSyncStatus('success')
@@ -290,6 +324,11 @@ export function ArtistPage() {
 			setTimeout(() => {
 				setSyncStatus('idle')
 			}, 3000)
+		} finally {
+			// Remove abort controller from tracking
+			pollAbortControllersRef.current = pollAbortControllersRef.current.filter(
+				(c) => c !== abortController
+			)
 		}
 	}, [artistId, token, isSyncing, fetchArtist, pollJobStatus])
 
@@ -301,6 +340,10 @@ export function ArtistPage() {
 			if (!token || memberSyncStates[memberId] === 'syncing') return
 
 			setMemberSyncStates((prev) => ({ ...prev, [memberId]: 'syncing' }))
+
+			// Create abort controller for polling
+			const abortController = new AbortController()
+			pollAbortControllersRef.current.push(abortController)
 
 			try {
 				const response = await fetch(
@@ -321,7 +364,7 @@ export function ArtistPage() {
 
 				// Poll job status if we got a job ID - keep syncing state until done
 				if (data.jobId) {
-					const succeeded = await pollJobStatus(data.jobId)
+					const succeeded = await pollJobStatus(data.jobId, abortController.signal)
 					if (succeeded) {
 						setMemberSyncStates((prev) => ({
 							...prev,
@@ -375,6 +418,11 @@ export function ArtistPage() {
 						delete memberSyncTimeoutsRef.current[memberId]
 					},
 					3000
+				)
+			} finally {
+				// Remove abort controller from tracking
+				pollAbortControllersRef.current = pollAbortControllersRef.current.filter(
+					(c) => c !== abortController
 				)
 			}
 		},
