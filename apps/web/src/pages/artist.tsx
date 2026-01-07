@@ -175,6 +175,36 @@ export function ArtistPage() {
 		fetchArtist()
 	}, [fetchArtist])
 
+	const pollJobStatus = useCallback(async (jobId: string): Promise<boolean> => {
+		if (!token) return false
+		
+		const maxAttempts = 30 // 30 * 2s = 60s max wait
+		const pollInterval = 2000 // 2 seconds
+		
+		for (let attempt = 0; attempt < maxAttempts; attempt++) {
+			try {
+				const response = await fetch(`${API_URL}/api/sync/jobs/${jobId}`, {
+					headers: { Authorization: `Bearer ${token}` },
+				})
+				
+				if (!response.ok) return false
+				
+				const job = await response.json()
+				
+				if (job.status === 'succeeded') {
+					return true
+				} else if (job.status === 'failed') {
+					return false
+				}
+				// Still pending or running, wait and try again
+				await new Promise(resolve => setTimeout(resolve, pollInterval))
+			} catch {
+				return false
+			}
+		}
+		return false // Timeout
+	}, [token])
+
 	const syncWithMusicBrainz = useCallback(async () => {
 		if (!token || isSyncing) return
 
@@ -193,11 +223,17 @@ export function ArtistPage() {
 				throw new Error('Sync request failed')
 			}
 
+			const data = await response.json()
 			setSyncStatus('success')
-			// Refresh artist data after a short delay to allow worker to process
-			setTimeout(() => {
-				fetchArtist()
-			}, 2000)
+			setIsSyncing(false)
+
+			// Poll job status if we got a job ID
+			if (data.jobId) {
+				const succeeded = await pollJobStatus(data.jobId)
+				if (succeeded) {
+					fetchArtist()
+				}
+			}
 
 			// Reset status after 3 seconds
 			setTimeout(() => {
@@ -206,14 +242,13 @@ export function ArtistPage() {
 		} catch (err) {
 			console.error('Error syncing artist:', err)
 			setSyncStatus('error')
+			setIsSyncing(false)
 			// Reset status after 3 seconds
 			setTimeout(() => {
 				setSyncStatus('idle')
 			}, 3000)
-		} finally {
-			setIsSyncing(false)
 		}
-	}, [artistId, token, isSyncing, fetchArtist])
+	}, [artistId, token, isSyncing, fetchArtist, pollJobStatus])
 
 	const syncMember = useCallback(async (memberId: string, e: React.MouseEvent) => {
 		e.preventDefault() // Prevent navigation when clicking sync button
@@ -235,7 +270,16 @@ export function ArtistPage() {
 				throw new Error('Sync request failed')
 			}
 
+			const data = await response.json()
 			setMemberSyncStates(prev => ({ ...prev, [memberId]: 'success' }))
+
+			// Poll job status if we got a job ID, then refresh artist data
+			if (data.jobId) {
+				const succeeded = await pollJobStatus(data.jobId)
+				if (succeeded) {
+					fetchArtist() // Refresh to show updated member data
+				}
+			}
 
 			// Reset status after 3 seconds
 			setTimeout(() => {
@@ -249,7 +293,7 @@ export function ArtistPage() {
 				setMemberSyncStates(prev => ({ ...prev, [memberId]: 'idle' }))
 			}, 3000)
 		}
-	}, [token, memberSyncStates])
+	}, [token, memberSyncStates, pollJobStatus, fetchArtist])
 
 	const isGroup = artist?.type === 'group'
 	const hasMembers =
