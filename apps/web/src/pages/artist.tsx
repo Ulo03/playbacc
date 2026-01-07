@@ -3,7 +3,7 @@ import { useNavigate, Link, getRouteApi } from '@tanstack/react-router'
 import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { ArrowLeft, Users, User, Calendar, ChevronDown } from 'lucide-react'
+import { ArrowLeft, Users, User, Calendar, ChevronDown, RefreshCw, Check, AlertCircle } from 'lucide-react'
 
 interface MemberInfo {
 	id: string
@@ -135,6 +135,9 @@ export function ArtistPage() {
 	const [currentMembersExpanded, setCurrentMembersExpanded] = useState(false)
 	const [previousMembersExpanded, setPreviousMembersExpanded] = useState(false)
 	const [groupsExpanded, setGroupsExpanded] = useState(false)
+	const [isSyncing, setIsSyncing] = useState(false)
+	const [syncStatus, setSyncStatus] = useState<'idle' | 'success' | 'error'>('idle')
+	const [memberSyncStates, setMemberSyncStates] = useState<Record<string, 'idle' | 'syncing' | 'success' | 'error'>>({})
 
 	const fetchArtist = useCallback(async () => {
 		if (!token) return
@@ -171,6 +174,82 @@ export function ArtistPage() {
 	useEffect(() => {
 		fetchArtist()
 	}, [fetchArtist])
+
+	const syncWithMusicBrainz = useCallback(async () => {
+		if (!token || isSyncing) return
+
+		setIsSyncing(true)
+		setSyncStatus('idle')
+
+		try {
+			const response = await fetch(`${API_URL}/api/sync/artists/${artistId}`, {
+				method: 'POST',
+				headers: {
+					Authorization: `Bearer ${token}`,
+				},
+			})
+
+			if (!response.ok) {
+				throw new Error('Sync request failed')
+			}
+
+			setSyncStatus('success')
+			// Refresh artist data after a short delay to allow worker to process
+			setTimeout(() => {
+				fetchArtist()
+			}, 2000)
+
+			// Reset status after 3 seconds
+			setTimeout(() => {
+				setSyncStatus('idle')
+			}, 3000)
+		} catch (err) {
+			console.error('Error syncing artist:', err)
+			setSyncStatus('error')
+			// Reset status after 3 seconds
+			setTimeout(() => {
+				setSyncStatus('idle')
+			}, 3000)
+		} finally {
+			setIsSyncing(false)
+		}
+	}, [artistId, token, isSyncing, fetchArtist])
+
+	const syncMember = useCallback(async (memberId: string, e: React.MouseEvent) => {
+		e.preventDefault() // Prevent navigation when clicking sync button
+		e.stopPropagation()
+		
+		if (!token || memberSyncStates[memberId] === 'syncing') return
+
+		setMemberSyncStates(prev => ({ ...prev, [memberId]: 'syncing' }))
+
+		try {
+			const response = await fetch(`${API_URL}/api/sync/artists/${memberId}`, {
+				method: 'POST',
+				headers: {
+					Authorization: `Bearer ${token}`,
+				},
+			})
+
+			if (!response.ok) {
+				throw new Error('Sync request failed')
+			}
+
+			setMemberSyncStates(prev => ({ ...prev, [memberId]: 'success' }))
+
+			// Reset status after 3 seconds
+			setTimeout(() => {
+				setMemberSyncStates(prev => ({ ...prev, [memberId]: 'idle' }))
+			}, 3000)
+		} catch (err) {
+			console.error('Error syncing member:', err)
+			setMemberSyncStates(prev => ({ ...prev, [memberId]: 'error' }))
+			// Reset status after 3 seconds
+			setTimeout(() => {
+				setMemberSyncStates(prev => ({ ...prev, [memberId]: 'idle' }))
+			}, 3000)
+		}
+	}, [token, memberSyncStates])
 
 	const isGroup = artist?.type === 'group'
 	const hasMembers =
@@ -279,7 +358,7 @@ export function ArtistPage() {
 									)}
 								</div>
 							)}
-							<div>
+							<div className="flex-1">
 								<h1 className="text-2xl font-bold tracking-tight">
 									{artist.name}
 								</h1>
@@ -303,6 +382,27 @@ export function ArtistPage() {
 									)}
 								</div>
 							</div>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={syncWithMusicBrainz}
+								disabled={isSyncing}
+								className="shrink-0"
+								title="Sync metadata from MusicBrainz"
+							>
+								{isSyncing ? (
+									<RefreshCw className="size-4 animate-spin" />
+								) : syncStatus === 'success' ? (
+									<Check className="size-4 text-green-500" />
+								) : syncStatus === 'error' ? (
+									<AlertCircle className="size-4 text-red-500" />
+								) : (
+									<RefreshCw className="size-4" />
+								)}
+								<span className="ml-2 hidden sm:inline">
+									{isSyncing ? 'Syncing...' : syncStatus === 'success' ? 'Queued!' : syncStatus === 'error' ? 'Failed' : 'Sync'}
+								</span>
+							</Button>
 						</div>
 
 						{/* Members section (for groups) */}
@@ -376,6 +476,22 @@ export function ArtistPage() {
 																		</p>
 																	)}
 																</div>
+																<button
+																	onClick={(e) => syncMember(member.id, e)}
+																	disabled={memberSyncStates[member.id] === 'syncing'}
+																	className="p-1.5 rounded-md hover:bg-muted transition-colors"
+																	title="Sync member metadata"
+																>
+																	{memberSyncStates[member.id] === 'syncing' ? (
+																		<RefreshCw className="size-4 animate-spin text-muted-foreground" />
+																	) : memberSyncStates[member.id] === 'success' ? (
+																		<Check className="size-4 text-green-500" />
+																	) : memberSyncStates[member.id] === 'error' ? (
+																		<AlertCircle className="size-4 text-red-500" />
+																	) : (
+																		<RefreshCw className="size-4 text-muted-foreground" />
+																	)}
+																</button>
 															</Link>
 														)
 													)}
@@ -453,6 +569,22 @@ export function ArtistPage() {
 																		</p>
 																	)}
 																</div>
+																<button
+																	onClick={(e) => syncMember(member.id, e)}
+																	disabled={memberSyncStates[member.id] === 'syncing'}
+																	className="p-1.5 rounded-md hover:bg-muted transition-colors"
+																	title="Sync member metadata"
+																>
+																	{memberSyncStates[member.id] === 'syncing' ? (
+																		<RefreshCw className="size-4 animate-spin text-muted-foreground" />
+																	) : memberSyncStates[member.id] === 'success' ? (
+																		<Check className="size-4 text-green-500" />
+																	) : memberSyncStates[member.id] === 'error' ? (
+																		<AlertCircle className="size-4 text-red-500" />
+																	) : (
+																		<RefreshCw className="size-4 text-muted-foreground" />
+																	)}
+																</button>
 															</Link>
 														)
 													)}
@@ -541,6 +673,22 @@ export function ArtistPage() {
 															</p>
 														)}
 													</div>
+													<button
+														onClick={(e) => syncMember(group.id, e)}
+														disabled={memberSyncStates[group.id] === 'syncing'}
+														className="p-1.5 rounded-md hover:bg-muted transition-colors"
+														title="Sync group metadata"
+													>
+														{memberSyncStates[group.id] === 'syncing' ? (
+															<RefreshCw className="size-4 animate-spin text-muted-foreground" />
+														) : memberSyncStates[group.id] === 'success' ? (
+															<Check className="size-4 text-green-500" />
+														) : memberSyncStates[group.id] === 'error' ? (
+															<AlertCircle className="size-4 text-red-500" />
+														) : (
+															<RefreshCw className="size-4 text-muted-foreground" />
+														)}
+													</button>
 												</Link>
 											))}
 										</div>
