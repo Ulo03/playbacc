@@ -250,7 +250,10 @@ async function runSlowLoopOnce(mbCache: MusicBrainzCache): Promise<void> {
 				`skipped=${stats.totalSkipped}, errors=${stats.totalErrors}`
 		)
 		console.log(
-			`[Worker:SlowLoop] MB cache stats: isrc=${cacheStats.isrc}, search=${cacheStats.search}, details=${cacheStats.details}`
+			`[Worker:SlowLoop] MB cache stats: ` +
+				`isrc=${cacheStats.isrc.size}/${cacheStats.isrc.max}, ` +
+				`search=${cacheStats.search.size}/${cacheStats.search.max}, ` +
+				`details=${cacheStats.details.size}/${cacheStats.details.max}`
 		)
 	} catch (error) {
 		console.error('[Worker:SlowLoop] Error in fallback cycle:', error)
