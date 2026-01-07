@@ -9,8 +9,10 @@ import {
 	text,
 	timestamp,
 	unique,
+	uniqueIndex,
 	uuid,
 } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
 import {
 	accountProviderEnum,
 	artistTypeEnum,
@@ -325,12 +327,10 @@ export const mb_enrichment_jobs = pgTable(
 		),
 		// Index for cleanup queries (by status and updated_at)
 		index('idx_mb_jobs_cleanup').on(table.status, table.updated_at),
-		// Index for deduplication checks (find active jobs for same entity)
-		index('idx_mb_jobs_entity').on(
-			table.job_type,
-			table.entity_type,
-			table.entity_id,
-			table.status
-		),
+		// Partial unique index to prevent duplicate active jobs (race condition protection)
+		// Only one pending/running job allowed per (job_type, entity_type, entity_id)
+		uniqueIndex('idx_mb_jobs_active_dedupe')
+			.on(table.job_type, table.entity_type, table.entity_id)
+			.where(sql`${table.status} IN ('pending', 'running')`),
 	]
 )

@@ -105,7 +105,8 @@ export const QUEUE_CONFIG = {
 
 /**
  * Enqueues a MusicBrainz enrichment job.
- * Uses application-side dedupe: checks for existing active job before inserting.
+ * Uses database-level dedupe via partial unique index to prevent race conditions.
+ * The index ensures only one active (pending/running) job exists per (job_type, entity_type, entity_id).
  *
  * @param options - Job options
  * @returns Enqueue result
@@ -119,42 +120,66 @@ export async function enqueueJob(options: EnqueueJobOptions): Promise<EnqueueRes
 		maxAttempts = QUEUE_CONFIG.defaultMaxAttempts,
 	} = options
 
-	// Check for existing active job (pending or running)
-	const existingActive = await db.query.mb_enrichment_jobs.findFirst({
-		where: (jobs, { eq, and, inArray }) =>
-			and(
-				eq(jobs.job_type, jobType),
-				eq(jobs.entity_type, entityType),
-				eq(jobs.entity_id, entityId),
-				inArray(jobs.status, ['pending', 'running'])
-			),
-	})
+	try {
+		// Try to insert - the partial unique index will reject duplicates atomically
+		const result = await db
+			.insert(mb_enrichment_jobs)
+			.values({
+				job_type: jobType,
+				entity_type: entityType,
+				entity_id: entityId,
+				status: 'pending',
+				priority,
+				max_attempts: maxAttempts,
+				run_after: new Date(),
+			})
+			.onConflictDoNothing()
+			.returning({ id: mb_enrichment_jobs.id })
 
-	if (existingActive) {
+		if (result.length > 0) {
+			return {
+				created: true,
+				jobId: result[0].id,
+			}
+		}
+
+		// Insert was rejected due to conflict - find the existing active job
+		const existingActive = await db.query.mb_enrichment_jobs.findFirst({
+			where: (jobs, { eq, and, inArray }) =>
+				and(
+					eq(jobs.job_type, jobType),
+					eq(jobs.entity_type, entityType),
+					eq(jobs.entity_id, entityId),
+					inArray(jobs.status, ['pending', 'running'])
+				),
+		})
+
 		return {
 			created: false,
-			jobId: existingActive.id,
+			jobId: existingActive?.id ?? null,
 			reason: 'already_active',
 		}
-	}
+	} catch (error) {
+		// Handle unique constraint violation (fallback for edge cases)
+		const message = error instanceof Error ? error.message : String(error)
+		if (message.includes('unique') || message.includes('duplicate')) {
+			const existingActive = await db.query.mb_enrichment_jobs.findFirst({
+				where: (jobs, { eq, and, inArray }) =>
+					and(
+						eq(jobs.job_type, jobType),
+						eq(jobs.entity_type, entityType),
+						eq(jobs.entity_id, entityId),
+						inArray(jobs.status, ['pending', 'running'])
+					),
+			})
 
-	// Insert new job
-	const [newJob] = await db
-		.insert(mb_enrichment_jobs)
-		.values({
-			job_type: jobType,
-			entity_type: entityType,
-			entity_id: entityId,
-			status: 'pending',
-			priority,
-			max_attempts: maxAttempts,
-			run_after: new Date(),
-		})
-		.returning({ id: mb_enrichment_jobs.id })
-
-	return {
-		created: true,
-		jobId: newJob.id,
+			return {
+				created: false,
+				jobId: existingActive?.id ?? null,
+				reason: 'already_active',
+			}
+		}
+		throw error
 	}
 }
 
