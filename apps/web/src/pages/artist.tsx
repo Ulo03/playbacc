@@ -224,15 +224,21 @@ export function ArtistPage() {
 			}
 
 			const data = await response.json()
-			setSyncStatus('success')
-			setIsSyncing(false)
 
-			// Poll job status if we got a job ID
+			// Poll job status if we got a job ID - keep syncing state until done
 			if (data.jobId) {
 				const succeeded = await pollJobStatus(data.jobId)
+				setIsSyncing(false)
 				if (succeeded) {
+					setSyncStatus('success')
 					fetchArtist()
+				} else {
+					setSyncStatus('error')
 				}
+			} else {
+				// No job ID means sync was immediate or skipped
+				setIsSyncing(false)
+				setSyncStatus('success')
 			}
 
 			// Reset status after 3 seconds
@@ -271,14 +277,19 @@ export function ArtistPage() {
 			}
 
 			const data = await response.json()
-			setMemberSyncStates(prev => ({ ...prev, [memberId]: 'success' }))
 
-			// Poll job status if we got a job ID, then refresh artist data
+			// Poll job status if we got a job ID - keep syncing state until done
 			if (data.jobId) {
 				const succeeded = await pollJobStatus(data.jobId)
 				if (succeeded) {
+					setMemberSyncStates(prev => ({ ...prev, [memberId]: 'success' }))
 					fetchArtist() // Refresh to show updated member data
+				} else {
+					setMemberSyncStates(prev => ({ ...prev, [memberId]: 'error' }))
 				}
+			} else {
+				// No job ID means sync was immediate or skipped
+				setMemberSyncStates(prev => ({ ...prev, [memberId]: 'success' }))
 			}
 
 			// Reset status after 3 seconds
@@ -444,7 +455,7 @@ export function ArtistPage() {
 									<RefreshCw className="size-4" />
 								)}
 								<span className="ml-2 hidden sm:inline">
-									{isSyncing ? 'Syncing...' : syncStatus === 'success' ? 'Queued!' : syncStatus === 'error' ? 'Failed' : 'Sync'}
+									{isSyncing ? 'Syncing...' : syncStatus === 'success' ? 'Synced!' : syncStatus === 'error' ? 'Failed' : 'Sync'}
 								</span>
 							</Button>
 						</div>
