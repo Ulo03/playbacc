@@ -4,6 +4,7 @@ import authRoutes from './routes/auth'
 import syncRoutes from './routes/sync'
 import playerRoutes from './routes/player'
 import statsRoutes from './routes/stats'
+import artistsRoutes from './routes/artists'
 
 const app = new Hono()
 
@@ -26,5 +27,6 @@ app.route('/api/auth', authRoutes)
 app.route('/api/sync', syncRoutes)
 app.route('/api/player', playerRoutes)
 app.route('/api/stats', statsRoutes)
+app.route('/api/artists', artistsRoutes)
 
 export default app

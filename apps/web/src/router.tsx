@@ -9,6 +9,7 @@ import { LoginPage } from '@/pages/login'
 import { CallbackPage } from '@/pages/callback'
 import { DashboardPage } from '@/pages/dashboard'
 import { ThemesPage } from '@/pages/themes'
+import { ArtistPage } from '@/pages/artist'
 
 interface RouterContext {
 	isAuthenticated: boolean
@@ -67,8 +68,26 @@ const themesRoute = createRoute({
 	component: ThemesPage,
 })
 
+// Protected artist route
+const artistRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/artist/$artistId',
+	beforeLoad: ({ context }) => {
+		if (!context.isAuthenticated) {
+			throw redirect({ to: '/login' })
+		}
+	},
+	component: ArtistPage,
+})
+
 // Route tree
-const routeTree = rootRoute.addChildren([loginRoute, callbackRoute, indexRoute, themesRoute])
+const routeTree = rootRoute.addChildren([
+	loginRoute,
+	callbackRoute,
+	indexRoute,
+	themesRoute,
+	artistRoute,
+])
 
 // Create router
 export const router = createRouter({
