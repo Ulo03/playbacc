@@ -1,4 +1,8 @@
 {
+	"connection": {
+		"title": "Connection Lost",
+		"message": "Unable to connect to the server. Reconnecting automatically..."
+	},
 	"themePicker": {
 		"labels": {
 			"theme": "Theme",

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/lib/auth'
+import { useApiStatus } from '@/hooks/use-api-status'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ThemeSelectorModal } from '@/components/theme-selector-modal'
@@ -62,6 +63,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 export function DashboardPage() {
 	const { user, token, logout } = useAuth()
+	const { isConnected } = useApiStatus()
 	const [currentlyPlaying, setCurrentlyPlaying] =
 		useState<CurrentlyPlayingResponse | null>(null)
 	const [recentlyPlayed, setRecentlyPlayed] =
@@ -80,9 +82,15 @@ export function DashboardPage() {
 	const lastFetchTime = useRef<number>(performance.now())
 	const previousTrackId = useRef<string | null>(null)
 	const progressBarRef = useRef<HTMLDivElement>(null)
+	const isConnectedRef = useRef(isConnected)
+
+	// Keep ref in sync with state
+	useEffect(() => {
+		isConnectedRef.current = isConnected
+	}, [isConnected])
 
 	const fetchCurrentlyPlaying = useCallback(async () => {
-		if (!token) return
+		if (!token || !isConnectedRef.current) return
 
 		try {
 			setError(null)
@@ -116,7 +124,7 @@ export function DashboardPage() {
 	}, [token])
 
 	const fetchRecentlyPlayed = useCallback(async () => {
-		if (!token) return
+		if (!token || !isConnectedRef.current) return
 
 		try {
 			const response = await fetch(
@@ -142,7 +150,7 @@ export function DashboardPage() {
 	}, [token])
 
 	const fetchTopArtists = useCallback(async () => {
-		if (!token) return
+		if (!token || !isConnectedRef.current) return
 
 		try {
 			const [groupsRes, soloRes] = await Promise.all([
@@ -182,7 +190,10 @@ export function DashboardPage() {
 
 		// Refresh when page becomes visible (user returns to tab)
 		const handleVisibilityChange = () => {
-			if (document.visibilityState === 'visible') {
+			if (
+				document.visibilityState === 'visible' &&
+				isConnectedRef.current
+			) {
 				fetchCurrentlyPlaying()
 				fetchRecentlyPlayed()
 			}
@@ -198,6 +209,20 @@ export function DashboardPage() {
 			)
 		}
 	}, [fetchCurrentlyPlaying, fetchRecentlyPlayed, fetchTopArtists])
+
+	// Refresh data when connection is restored
+	useEffect(() => {
+		if (isConnected) {
+			fetchCurrentlyPlaying()
+			fetchRecentlyPlayed()
+			fetchTopArtists()
+		}
+	}, [
+		isConnected,
+		fetchCurrentlyPlaying,
+		fetchRecentlyPlayed,
+		fetchTopArtists,
+	])
 
 	// Detect track changes and refresh recently played
 	useEffect(() => {
@@ -393,9 +418,9 @@ export function DashboardPage() {
 							<Music className="size-4" />
 							Now Playing
 						</h3>
-						{error ? (
+						{error && isConnected ? (
 							<p className="text-sm text-destructive">{error}</p>
-						) : isLoading && !currentlyPlaying ? (
+						) : !isConnected || (isLoading && !currentlyPlaying) ? (
 							<div className="flex items-center gap-3">
 								<div className="w-12 h-12 bg-muted animate-pulse" />
 								<div className="flex-1 space-y-2">
@@ -485,18 +510,20 @@ export function DashboardPage() {
 							<Clock className="size-4" />
 							Recently Played
 						</h3>
-						{isLoadingRecent && !recentlyPlayed ? (
-							<div className="space-y-3">
-								{[...Array(5)].map((_, i) => (
+						{!isConnected ||
+						(isLoadingRecent && !recentlyPlayed) ? (
+							<div className="space-y-1">
+								{[...Array(10)].map((_, i) => (
 									<div
 										key={i}
-										className="flex items-center gap-3"
+										className="flex items-center gap-3 py-2 -mx-2 px-2"
 									>
 										<div className="w-10 h-10 bg-muted animate-pulse" />
 										<div className="flex-1 space-y-1.5">
 											<div className="h-3.5 bg-muted animate-pulse w-3/4" />
-											<div className="h-2.5 bg-muted animate-pulse w-1/2" />
+											<div className="h-3 bg-muted animate-pulse w-1/2" />
 										</div>
+										<div className="h-3 w-10 bg-muted animate-pulse shrink-0" />
 									</div>
 								))}
 							</div>
@@ -556,17 +583,19 @@ export function DashboardPage() {
 								<Users className="size-4" />
 								Top Groups
 							</h3>
-							{isLoadingTopArtists && !topGroups ? (
-								<div className="space-y-3">
+							{!isConnected ||
+							(isLoadingTopArtists && !topGroups) ? (
+								<div className="space-y-1">
 									{[...Array(5)].map((_, i) => (
 										<div
 											key={i}
-											className="flex items-center gap-3"
+											className="flex items-center gap-3 py-2 -mx-2 px-2"
 										>
+											<div className="w-4" />
 											<div className="w-10 h-10 rounded-full bg-muted animate-pulse" />
 											<div className="flex-1 space-y-1.5">
 												<div className="h-3.5 bg-muted animate-pulse w-3/4" />
-												<div className="h-2.5 bg-muted animate-pulse w-1/3" />
+												<div className="h-3 bg-muted animate-pulse w-1/2" />
 											</div>
 										</div>
 									))}
@@ -623,17 +652,19 @@ export function DashboardPage() {
 								<User className="size-4" />
 								Top Solo Artists
 							</h3>
-							{isLoadingTopArtists && !topSoloArtists ? (
-								<div className="space-y-3">
+							{!isConnected ||
+							(isLoadingTopArtists && !topSoloArtists) ? (
+								<div className="space-y-1">
 									{[...Array(5)].map((_, i) => (
 										<div
 											key={i}
-											className="flex items-center gap-3"
+											className="flex items-center gap-3 py-2 -mx-2 px-2"
 										>
+											<div className="w-4" />
 											<div className="w-10 h-10 rounded-full bg-muted animate-pulse" />
 											<div className="flex-1 space-y-1.5">
 												<div className="h-3.5 bg-muted animate-pulse w-3/4" />
-												<div className="h-2.5 bg-muted animate-pulse w-1/3" />
+												<div className="h-3 bg-muted animate-pulse w-1/2" />
 											</div>
 										</div>
 									))}
