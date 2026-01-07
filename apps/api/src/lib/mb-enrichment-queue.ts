@@ -419,6 +419,8 @@ async function updateEntityEnrichedAt(
 				.set({ mb_last_enriched_at: timestamp })
 				.where(eq(tracks.id, entityId))
 			break
+		default:
+			console.warn(`[MbQueue] Unknown entity type: ${entityType}`)
 	}
 }
 
